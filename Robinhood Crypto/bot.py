@@ -1,14 +1,14 @@
 import robin_stocks.robinhood as rh
 from order import *
 import math
-import time as t
+import time
 
 class SpotGridTradingBot():
     def __init__(self, config):
         """
         config = {
-            'crypto': 'BTC',
-            'days_to_run': 1,
+            'crypto': 'LTC',
+            'days_to_run': 7,
             'mode': '',
             'backtest': {
                 'interval': '',
@@ -120,7 +120,7 @@ class SpotGridTradingBot():
             while self.continue_trading():
                 self.update_orders()
 
-                t.sleep(self.latency)
+                time.sleep(self.latency)
 
                 self.fetch_stats()
                 self.update_output()
@@ -201,7 +201,7 @@ class SpotGridTradingBot():
         Prints out the lastest information out to console
         """
         
-        print("============================================")
+        print("====================" + time.ctime() + "====================")
         
         print("mode: " + self.mode)
         print("runtime: " + self.display_time(self.get_runtime()))
@@ -251,12 +251,17 @@ class SpotGridTradingBot():
         return rh.crypto.get_crypto_quote(crypto_symbol)
     
     def init_levels_and_orders(self):
-        self.start_time = t.time()
-        self.levels = {}
-        self.levels[1] = {'price': self.lower_price}
-        self.levels[10] = {'price': self.upper_price}
+        # Start the clock
+        self.start_time = time.time()
 
-        self.amount_per_level = self.round_down_to_2(self.cash / self.level_num)
+        # Initialize levels
+        self.levels = {}
+
+        # Set lowest and highest level
+        self.levels[1] = {'price': round(self.lower_price, 2)}
+        self.levels[self.level_num] = {'price': round(self.upper_price, 2)}
+
+        self.cash_per_level = self.round_down_to_2(self.cash / self.level_num)
 
         # Determine what the prices are at each level
         for i in range(2, self.level_num):
@@ -298,7 +303,7 @@ class SpotGridTradingBot():
         # Mark the closest level is inactive
         self.levels[self.closest_level_index]['status'] = 'inactive'
 
-        # Mark teh other levels as active
+        # Mark the other levels as active
         for i in range(len(self.levels)):
             if i+1 != self.closest_level_index:
                 self.levels[i+1]['status'] = 'active'
@@ -306,19 +311,19 @@ class SpotGridTradingBot():
         # Place buy and sell orders
         for i in range(len(self.levels)):
             if self.levels[i+1]['side'] == 'buy' and self.levels[i+1]['status'] == 'active':
-                self.levels[i+1]['order'] = [Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.amount_per_level, self.levels[i+1]['price'], timeInForce='gtc', jsonify=True))]
+                self.levels[i+1]['order'] = Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.levels[i+1]['price'], timeInForce='gtc', jsonify=True))
             elif self.levels[i+1]['side'] == 'sell' and self.levels[i+1]['status'] == 'active':
-                self.levels[i+1]['order'] = [Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.amount_per_level, self.levels[i+1]['price'], timeInForce='gtc', jsonify=True))]
+                self.levels[i+1]['order'] = Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.levels[i+1]['price'], timeInForce='gtc', jsonify=True))
             else:
                 self.levels[i+1]['order'] = None
     
     def update_orders(self):
-        # Update orders
         for i in range(len(self.levels)):
+            # Update each order
             self.levels[i+1]['order'].update()
 
             if self.levels[i+1]['order'].is_filled():
-                if self.level[i+1]['side'] == 'buy' and self.closest_level_index == i+2:
+                if self.levels[i+1]['side'] == 'buy' and self.closest_level_index == i+2:
                     # If the filled order was a buy order, place a sell order on the level above it, assuming it was previously inactive
 
                     # Set the filled level to inactive and adjust the inactive index
@@ -329,8 +334,8 @@ class SpotGridTradingBot():
                     self.levels[i+2]['side'] = 'sell'
                     self.levels[i+2]['status'] = 'active'
                     
-                    self.levels[i+2]['order'] = [Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.amount_per_level, self.levels[i+2]['price'], timeInForce='gtc', jsonify=True))]
-                elif self.level[i+1]['side'] == 'sell' and self.closest_level_index == i:
+                    self.levels[i+2]['order'] = [Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.levels[i+2]['price'], timeInForce='gtc', jsonify=True))]
+                elif self.levels[i+1]['side'] == 'sell' and self.closest_level_index == i:
                     # If the filled order was a sell order, place a buy order on the level below it, assuming it was previously inactive
 
                     # Set the filled level to inactive and adjust the inactive index
@@ -341,9 +346,9 @@ class SpotGridTradingBot():
                     self.levels[i]['side'] = 'buy'
                     self.levels[i]['status'] = 'active'
 
-                    self.levels[i]['order'] = [Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.amount_per_level, self.levels[i]['price'], timeInForce='gtc', jsonify=True))]
+                    self.levels[i]['order'] = [Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.levels[i]['price'], timeInForce='gtc', jsonify=True))]
                 else:
-                    raise Exception
+                    raise Exception("Order was filled but either was not sell nor buy or ignored level was not correct or both")
     
     def build_holdings(self):
         """
@@ -405,7 +410,7 @@ class SpotGridTradingBot():
         """
         Returns the runtime in seconds
         """
-        return t.time() - self.start_time
+        return time.time() - self.start_time
     
     def retrieve_cash_and_equity(self):
         """
@@ -491,19 +496,19 @@ class SpotGridTradingBot():
 
 if __name__ == '__main__':
     config = {
-        'crypto': 'BTC',
-        'days_to_run': 1,
+        'crypto': 'LTC',
+        'days_to_run': 7,
         'mode': '',
         'backtest': {
             'interval': '',
             'span': '',
             'bounds': '',
         },
-        'upper_price': 100,
-        'lower_price': 10,
+        'upper_price': 95,
+        'lower_price': 85,
         'level_num': 10,
-        'cash': 10000,
-        'loss_threshold': 50.00,
+        'cash': 100,
+        'loss_threshold': 5.00,
         'loss_percentage': 5.00,
         'latency_in_sec': 30
     }
