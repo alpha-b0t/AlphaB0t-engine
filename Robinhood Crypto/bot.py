@@ -21,7 +21,8 @@ class SpotGridTradingBot():
             'cash': 2000,
             'loss_threshold': 50.00,
             'loss_percentage': 5.00,
-            'latency_in_sec': 50
+            'latency_in_sec': 50,
+            'is_static': False
         }
         """
         self.check_config(config)
@@ -39,6 +40,9 @@ class SpotGridTradingBot():
         self.loss_threshold = float(config['loss_threshold'])
         self.loss_percentage = float(config['loss_percentage'])
         self.latency = float(config['latency_in_sec'])
+        
+        # is_static determines if the sides of the grid lines can change from buy to sell or vice-versa
+        self.is_static = bool(config['is_static'])
 
         self.login()
 
@@ -85,6 +89,7 @@ class SpotGridTradingBot():
         assert config['loss_percentage'] > 0
         assert type(config['latency_in_sec']) == float or type(config['latency_in_sec']) == int
         assert config['latency_in_sec'] > 0
+        assert type(config['is_static']) == bool
 
         print("configuration test: PASSED")
     
@@ -114,11 +119,20 @@ class SpotGridTradingBot():
     
     def run(self):
         try:
-            self.init_levels_and_orders()
+            if self.is_static:
+                self.init_grid_static()
+            else:
+                self.init_grid()
+            
+            self.fetch_balances()
+            self.update_output()
 
             # Check continue_trading
             while self.continue_trading():
-                self.update_orders()
+                if self.is_static:
+                    self.update_orders_static()
+                else:
+                    self.update_orders()
 
                 time.sleep(self.latency)
 
@@ -218,7 +232,9 @@ class SpotGridTradingBot():
         print("profit: " + self.display_profit() + " (" + self.display_percent_change() + ")")
 
         print("number of pending orders:", len(get_all_open_orders()))
-        print("levels:", self.levels)
+        print("grids:")
+        self.print_grids()
+        print('\n')
     
     def round_down_to_2(self, value):
         """
@@ -239,35 +255,63 @@ class SpotGridTradingBot():
         Returns a dictionary of the latest quote of the cryptocurrency.
         Dictionary Keys:
             ask_price
+            ask_source
             bid_price
-            high_price
-            id
-            low_price
+            bid_source
             mark_price
+            high_price
+            low_price
             open_price
             symbol
+            id
             volume
+            updated_at
+        
+        sample_api_response = {'ask_price': '27213.3353724',
+                'ask_source': 'df727485bffb859b5a26383d2e315dc34497f50158f2391a2c4cc03e2e7b27fe',
+                'bid_price': '27016.00727763',
+                'bid_source': '9873d2c153944f73b1724c7dea2589207b0b46a177081fb8b0a7893bd480b74f',
+                'mark_price': '27114.671325015',
+                'high_price': '27343.1989937',
+                'low_price': '27028.0141418',
+                'open_price': '27151.5435720200005',
+                'symbol': 'BTCUSD',
+                'id': '3d961844-d360-45fc-989b-f6fca761d511',
+                'volume': '0',
+                'updated_at': '2023-06-03T20:30:31.058Z'
+        }
         """
-        return rh.crypto.get_crypto_quote(crypto_symbol)
+        data = rh.crypto.get_crypto_quote(crypto_symbol)
+        data['ask_price'] = float(data['ask_price'])
+        data['bid_price'] = float(data['bid_price'])
+        data['mark_price'] = float(data['mark_price'])
+        data['high_price'] = float(data['high_price'])
+        data['low_price'] = float(data['low_price'])
+        data['open_price'] = float(data['open_price'])
+        return data
     
-    def init_levels_and_orders(self):
+    def init_grid(self):
         # Start the clock
         self.start_time = time.time()
 
-        # Initialize levels
-        self.levels = {}
-
-        # Set lowest and highest level
-        self.levels[1] = {'price': round(self.lower_price, 2)}
-        self.levels[self.level_num] = {'price': round(self.upper_price, 2)}
+        # Initialize grids
+        """
+        self.grids = {
+            'order_i': {
+                'price': 35.32,
+                'side': 'buy_or_sell',
+                'status': 'active_or_inactive',
+                'order': Order
+            }
+        }
+        """
+        self.grids = {}
 
         self.cash_per_level = self.round_down_to_2(self.cash / self.level_num)
 
         # Determine what the prices are at each level
-        for i in range(2, self.level_num):
-            self.levels[i] = {'price': self.round_down_to_2(self.lower_price + (i-1)*(self.upper_price - self.lower_price)/(self.level_num-1))}
-        
-        print(self.levels)
+        for i in range(self.level_num):
+            self.grids['order_' + str(i)] = {'price': self.round_down_to_2(self.lower_price + i*(self.upper_price - self.lower_price)/(self.level_num-1))}
 
         # Get crypto quote
         self.crypto_quote = self.get_latest_quote(self.crypto)
@@ -280,75 +324,177 @@ class SpotGridTradingBot():
         - But if spread is very large and they overlap, ignore the overlapping level(s)
         """
 
-        # Mark buys and sells
-        for i in range(len(self.levels)):
-            if self.crypto_quote['ask_price'] > self.levels[i+1]['price']:
-                self.levels[i+1]['side'] = 'buy'
+        # Mark orders as buys and sells
+        for i in range(len(self.grids)):
+            if self.crypto_quote['ask_price'] > self.grids['order_' + str(i)]['price']:
+                self.grids['order_' + str(i)]['side'] = 'buy'
             else:
-                self.levels[i+1]['side'] = 'sell'
-        
-        print(self.levels)
+                self.grids['order_' + str(i)]['side'] = 'sell'
 
-        # Determine which level is closest to the current price
+        # Determine which grid line is closest to the current price
         min_dist = float('inf')
-        self.closest_level_index = -1
+        self.closest_grid = -1
 
-        for i in range(len(self.levels)):
-            dist = abs(self.levels[i+1]['price'] - self.crypto_quote['mark_price'])
+        for i in range(len(self.grids)):
+            dist = abs(self.grids['order_' + str(i)]['price'] - self.crypto_quote['mark_price'])
 
             if dist < min_dist:
                 min_dist = dist
-                self.closest_level_index = i+1
+                self.closest_grid = i
         
-        # Mark the closest level is inactive
-        self.levels[self.closest_level_index]['status'] = 'inactive'
+        # Mark the closest grid line as inactive
+        self.grids['order_' + str(self.closest_grid)]['status'] = 'inactive'
 
-        # Mark the other levels as active
-        for i in range(len(self.levels)):
-            if i+1 != self.closest_level_index:
-                self.levels[i+1]['status'] = 'active'
+        # Mark the other grid lines as active
+        for i in range(len(self.grids)):
+            if i != self.closest_grid:
+                self.grids['order_' + str(i)]['status'] = 'active'
         
-        # Place buy and sell orders
-        for i in range(len(self.levels)):
-            if self.levels[i+1]['side'] == 'buy' and self.levels[i+1]['status'] == 'active':
-                self.levels[i+1]['order'] = Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.levels[i+1]['price'], timeInForce='gtc', jsonify=True))
-            elif self.levels[i+1]['side'] == 'sell' and self.levels[i+1]['status'] == 'active':
-                self.levels[i+1]['order'] = Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.levels[i+1]['price'], timeInForce='gtc', jsonify=True))
+        # Place buy orders and possibly sell orders
+        for i in range(len(self.grids)):
+            if self.grids['order_' + str(i)]['side'] == 'buy' and self.grids['order_' + str(i)]['status'] == 'active':
+                #self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+                self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_buy_crypto_limit(self.crypto, round(self.cash_per_level/self.grids['order_' + str(i)]['price'], 8), self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+            elif self.grids['order_' + str(i)]['side'] == 'sell' and self.grids['order_' + str(i)]['status'] == 'active':
+                #self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+                self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_sell_crypto_limit(self.crypto, round(self.cash_per_level/self.grids['order_' + str(i)]['price'], 8), self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
             else:
-                self.levels[i+1]['order'] = None
+                self.grids['order_' + str(i)]['order'] = None
+        
+        print("finished placing buy and sell orders")
+    
+    def init_grid_static(self):
+        # Start the clock
+        self.start_time = time.time()
+
+        # Initialize grids
+        """
+        self.grids = {
+            'order_i': {
+                'price': 35.32,
+                'side': 'buy_or_sell',
+                'status': 'active_or_inactive',
+                'order': Order
+            }
+        }
+        """
+        self.grids = {}
+
+        self.cash_per_level = self.round_down_to_2(self.cash / self.level_num)
+
+        # Determine what the prices are at each level
+        for i in range(self.level_num):
+            self.grids['order_' + str(i)] = {'price': self.round_down_to_2(self.lower_price + i*(self.upper_price - self.lower_price)/(self.level_num-1))}
+
+        # Get crypto quote
+        self.crypto_quote = self.get_latest_quote(self.crypto)
+
+        """
+        Notes:
+        - ask_price > bid_price due to spread (0.3-0.4%)
+        - Everything below ask_price is buy
+        - Everything above bid_price is sell
+        - But if spread is very large and they overlap, ignore the overlapping level(s)
+        """
+
+        # Mark orders as buys and sells
+        for i in range(len(self.grids)):
+            if self.crypto_quote['ask_price'] > self.grids['order_' + str(i)]['price']:
+                self.grids['order_' + str(i)]['side'] = 'buy'
+            else:
+                self.grids['order_' + str(i)]['side'] = 'sell'
+
+        # Mark all buy grid lines as active and all sell grid lines as inactive
+        for i in range(len(self.grids)):
+            if self.grids['order_' + str(i)]['side'] == 'buy':
+                self.grids['order_' + str(i)]['status'] = 'active'
+            elif self.grids['order_' + str(i)]['side'] == 'sell':
+                self.grids['order_' + str(i)]['status'] = 'inactive'
+        
+        # Place buy orders
+        for i in range(len(self.grids)):
+            if self.grids['order_' + str(i)]['side'] == 'buy' and self.grids['order_' + str(i)]['status'] == 'active':
+                #self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+                self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_buy_crypto_limit(self.crypto, round(self.cash_per_level/self.grids['order_' + str(i)]['price'], 8), self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+            else:
+                self.grids['order_' + str(i)]['order'] = None
+        
+        print("finished placing buy orders")
     
     def update_orders(self):
-        for i in range(len(self.levels)):
+        for i in range(len(self.grids)):
             # Update each order
-            self.levels[i+1]['order'].update()
+            self.grids['order_' + str(i)]['order'].update()
 
-            if self.levels[i+1]['order'].is_filled():
-                if self.levels[i+1]['side'] == 'buy' and self.closest_level_index == i+2:
+            if self.grids['order_' + str(i)]['order'].is_filled():
+                if self.grids['order_' + str(i)]['side'] == 'buy' and self.closest_grid == i+1:
                     # If the filled order was a buy order, place a sell order on the level above it, assuming it was previously inactive
 
                     # Set the filled level to inactive and adjust the inactive index
-                    self.levels[i+1]['status'] = 'inactive'
-                    self.closest_level_index = i+1
+                    self.grids['order_' + str(i)]['status'] = 'inactive'
+                    self.closest_grid = i
 
-                    # Place a sell order on level i+2
-                    self.levels[i+2]['side'] = 'sell'
-                    self.levels[i+2]['status'] = 'active'
+                    # Place a sell order on grid line i+1
+                    self.grids['order_' + str(i+1)]['side'] = 'sell'
+                    self.grids['order_' + str(i+1)]['status'] = 'active'
                     
-                    self.levels[i+2]['order'] = [Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.levels[i+2]['price'], timeInForce='gtc', jsonify=True))]
-                elif self.levels[i+1]['side'] == 'sell' and self.closest_level_index == i:
+                    #self.grids['order_' + str(i+1)]['order'] = Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(i+1)]['price'], timeInForce='gtc', jsonify=True))
+                    self.grids['order_' + str(i+1)]['order'] = Order(rh.orders.order_sell_crypto_limit(self.crypto, round(self.cash_per_level/self.grids['order_' + str(i+1)]['price'], 8), self.grids['order_' + str(i+1)]['price'], timeInForce='gtc', jsonify=True))
+                elif self.grids['order_' + str(i)]['side'] == 'sell' and self.closest_grid == i-1:
                     # If the filled order was a sell order, place a buy order on the level below it, assuming it was previously inactive
 
                     # Set the filled level to inactive and adjust the inactive index
-                    self.levels[i+1]['status'] = 'inactive'
-                    self.closest_level_index = i+1
+                    self.grids['order_' + str(i)]['status'] = 'inactive'
+                    self.closest_grid = i
 
-                    # Place a buy order on level i
-                    self.levels[i]['side'] = 'buy'
-                    self.levels[i]['status'] = 'active'
+                    # Place a buy order on grid line i
+                    self.grids['order_' + str(i-1)]['side'] = 'buy'
+                    self.grids['order_' + str(i-1)]['status'] = 'active'
 
-                    self.levels[i]['order'] = [Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.levels[i]['price'], timeInForce='gtc', jsonify=True))]
+                    #self.grids['order_' + str(i-1)]['order'] = Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(i-1)]['price'], timeInForce='gtc', jsonify=True))
+                    self.grids['order_' + str(i-1)]['order'] = Order(rh.orders.order_buy_crypto_limit(self.crypto, round(self.cash_per_level/self.grids['order_' + str(i-1)]['price'], 8), self.grids['order_' + str(i-1)]['price'], timeInForce='gtc', jsonify=True))
                 else:
                     raise Exception("Order was filled but either was not sell nor buy or ignored level was not correct or both")
+    
+    def update_orders_static(self):
+        for i in range(len(self.grids)):
+            # Update each active order
+            if self.grids['order_' + str(i)]['status'] == 'active':
+                self.grids['order_' + str(i)]['order'].update()
+
+                if self.grids['order_' + str(i)]['order'].is_filled():
+                    self.grids['order_' + str(i)]['status'] = 'inactive'
+
+                    if self.grids['order_' + str(i)]['side'] == 'buy':
+                        # If the filled order was a buy order, place a sell order on the closest sell grid line above it
+
+                        # Place a sell order on the closest sell grid line above it
+                        sell_index = i
+                        for j in range(i, len(self.grids)):
+                            if self.grids['order_' + str(j)]['side'] == 'sell' and self.grids['order_' + str(j)]['status'] == 'inactive':
+                                sell_index = j
+                                break
+                        
+                        self.grids['order_' + str(sell_index)]['status'] = 'active'
+                        
+                        #self.grids['order_' + str(sell_index)]['order'] = Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(sell_index)]['price'], timeInForce='gtc', jsonify=True))
+                        self.grids['order_' + str(sell_index)]['order'] = Order(rh.orders.order_sell_crypto_limit(self.crypto, round(self.cash_per_level/self.grids['order_' + str(sell_index)]['price'], 8), self.grids['order_' + str(sell_index)]['price'], timeInForce='gtc', jsonify=True))
+                    elif self.grids['order_' + str(i)]['side'] == 'sell':
+                        # If the filled order was a sell order, place a buy order on the level below it, assuming it was previously inactive
+
+                        # Place a buy order on the closest buy grid line below it
+                        buy_index = i
+                        for j in range(len(self.grids)-1, -1, -1):
+                            if self.grids['order_' + str(j)]['side'] == 'buy' and self.grids['order_' + str(j)]['status'] == 'inactive':
+                                buy_index = j
+                                break
+                        
+                        self.grids['order_' + str(buy_index)]['status'] = 'active'
+
+                        #self.grids['order_' + str(buy_index)]['order'] = Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(buy_index)]['price'], timeInForce='gtc', jsonify=True))
+                        self.grids['order_' + str(buy_index)]['order'] = Order(rh.orders.order_buy_crypto_limit(self.crypto, round(self.cash_per_level/self.grids['order_' + str(buy_index)]['price'], 8), self.grids['order_' + str(buy_index)]['price'], timeInForce='gtc', jsonify=True))
+                    else:
+                        raise Exception("Order was filled but either was not sell nor buy or ignored level was not correct or both")
     
     def build_holdings(self):
         """
@@ -397,9 +543,9 @@ class SpotGridTradingBot():
         rh_holdings = self.build_holdings()
 
         try:
-            holdings[self.crypto] = round(float(rh_holdings[self.crypto]['quantity']), self.get_precision(self.crypto_meta_data[self.crypto]['min_order_quantity_increment']))
+            holdings[self.crypto] = float(rh_holdings[self.crypto]['quantity'])
             
-            bought_price[self.crypto] = round( float(rh_holdings[self.crypto]['average_buy_price']), self.get_precision(self.crypto_meta_data[self.crypto]['min_order_price_increment']))
+            bought_price[self.crypto] = float(rh_holdings[self.crypto]['average_buy_price'])
         except:
             holdings[self.crypto] = 0
             bought_price[self.crypto] = 0
@@ -464,7 +610,7 @@ class SpotGridTradingBot():
 
         for crypto, amount in self.holdings.items():
             
-            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(round(float(self.get_latest_quote(crypto)['mark_price']), self.get_precision(self.crypto_meta_data[crypto]['min_order_price_increment']))) + '\n'
+            text += '\t' + str(amount) + ' ' + crypto + " at $" + str(float(self.get_latest_quote(crypto)['mark_price'])) + '\n'
         
         text = text[:-2]
         
@@ -492,11 +638,55 @@ class SpotGridTradingBot():
         text += '%'
 
         return text
+    
+    def print_grids(self):
+        for i in range(len(self.grids)-1, -1, -1):
+            if i == len(self.grids)-1:
+                print("================================================================")
+                print('grid_' + str(i))
+                print('\tprice: $' + str(self.grids['order_' + str(i)]['price']))
+                print('\tside:', self.grids['order_' + str(i)]['side'])
+                print('\tstatus:', self.grids['order_' + str(i)]['status'])
+                print('\torder:', self.grids['order_' + str(i)]['order'])
+                print('\tcash: $' + str(self.cash_per_level))
+                print("================================================================")
+            else:
+                print('grid_' + str(i))
+                print('\tprice: $' + str(self.grids['order_' + str(i)]['price']))
+                print('\tside:', self.grids['order_' + str(i)]['side'])
+                print('\tstatus:', self.grids['order_' + str(i)]['status'])
+                print('\torder:', self.grids['order_' + str(i)]['order'])
+                print('\tcash: $' + str(self.cash_per_level))
+                print("================================================================")
 
+def confirm_grids(upper_price, lower_price, level_num, cash):
+    print("Please confirm you want the following:")
+    for i in range(level_num-1, -1, -1):
+        if i== level_num-1:
+            print("================================================================")
+            print('grid_' + str(i) + ':')
+            print('\tprice: $' + str(upper_price - (level_num-1-i)*(upper_price-lower_price)/(level_num-1)))
+            print('\tcash: $' + str(cash/level_num))
+            print("================================================================")
+        else:
+            print('grid_' + str(i) + ':')
+            print('\tprice: $' + str(upper_price - (level_num-1-i)*(upper_price-lower_price)/(level_num-1)))
+            print('\tcash: $' + str(cash/level_num))
+            print("================================================================")
+
+    
+    response = input("Yes/Y or No/N: ")
+    while response not in ['Yes', 'yes', 'y', 'Y', 'No', 'no', 'n', 'N']:
+        response = input("Yes/Y or No/N: ")
+    
+    if response in ['Yes', 'yes', 'y', 'Y']:
+        return True
+    else:
+        return False
 
 if __name__ == '__main__':
     config = {
-        'crypto': 'LTC',
+        'crypto': 'BTC',
         'days_to_run': 7,
         'mode': '',
         'backtest': {
@@ -504,14 +694,16 @@ if __name__ == '__main__':
             'span': '',
             'bounds': '',
         },
-        'upper_price': 95,
-        'lower_price': 85,
+        'upper_price': 27300,
+        'lower_price': 26730,
         'level_num': 10,
         'cash': 100,
         'loss_threshold': 5.00,
         'loss_percentage': 5.00,
-        'latency_in_sec': 30
+        'latency_in_sec': 30,
+        'is_static': True
     }
-
-    spot_grid_trader = SpotGridTradingBot(config)
-    spot_grid_trader.run()
+    
+    if confirm_grids(config['upper_price'], config['lower_price'], config['level_num'], config['cash']):
+        spot_grid_trader = SpotGridTradingBot(config)
+        spot_grid_trader.run()

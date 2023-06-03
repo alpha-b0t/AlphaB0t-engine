@@ -51,39 +51,43 @@ class Order():
         'ref_id': 'some_id',
         'rounded_executed_notional': 'some_float',
         'side': 'buy_or_sell',
-        'state': 'unconfirmed',
+        'state': 'unconfirmed/confirmed/filled/canceled',
         'time_in_force': 'gtc',
         'type': 'market',
         'updated_at': 'some_time'
         }
         """
-        
-        self.account_id = order_info['account_id']
-        self.average_price = order_info['average_price']
-        self.cancel_url = order_info['cancel_url']
-        self.created_at = order_info['created_at']
-        self.cumulative_quantity = order_info['cumulative_quantity']
-        self.currency_pair_id = order_info['currency_pair_id']
-        self.entered_price = order_info['entered_price']
-        self.executions = order_info['executions']
-        self.funding_source_id = order_info['funding_source_id']
-        self.id = order_info['id']
-        self.initiator_id = order_info['initiator_id']
-        self.initiator_type = order_info['initiator_type']
-        self.is_visible_to_user = order_info['is_visible_to_user']
-        self.last_transaction_at = order_info['last_transaction_at']
-        self.price = order_info['price']
-        self.quantity = order_info['quantity']
-        self.ref_id = order_info['ref_id']
-        self.rounded_executed_notional = order_info['rounded_executed_notional']
-        self.side = order_info['side']
-        self.state = order_info['state']
-        self.time_in_force = order_info['time_in_force']
-        self.type = order_info['type']
-        self.updated_at = order_info['updated_at']
+        try:
+            self.account_id = order_info['account_id']
+            self.average_price = order_info['average_price']
+            self.cancel_url = order_info['cancel_url']
+            self.created_at = order_info['created_at']
+            self.cumulative_quantity = order_info['cumulative_quantity']
+            self.currency_pair_id = order_info['currency_pair_id']
+            self.entered_price = order_info['entered_price']
+            self.executions = order_info['executions']
+            self.funding_source_id = order_info['funding_source_id']
+            self.id = order_info['id']
+            self.initiator_id = order_info['initiator_id']
+            self.initiator_type = order_info['initiator_type']
+            self.is_visible_to_user = order_info['is_visible_to_user']
+            self.last_transaction_at = order_info['last_transaction_at']
+            self.price = order_info['price']
+            self.quantity = order_info['quantity']
+            self.ref_id = order_info['ref_id']
+            self.rounded_executed_notional = order_info['rounded_executed_notional']
+            self.side = order_info['side']
+            self.state = order_info['state']
+            self.time_in_force = order_info['time_in_force']
+            self.type = order_info['type']
+            self.updated_at = order_info['updated_at']
+        except Exception as ex:
+            print("order_info = " + str(order_info))
+            
+            raise ex
     
     def __repr__(self):
-        return 'order_id:' + str(self.id) + ', side:' + self.side + ', state:' + self.state
+        return '{order_id:' + str(self.id) + ', side:' + self.side + ', state:' + self.state + '}'
     
     def __eq__(self, other):
         return self.id == other.id
@@ -125,6 +129,6 @@ class Order():
         """
         Cancels the order and then updates the order
         """
-        updated_order_info = rho.cancel_crypto_order(self.id)
+        rho.cancel_crypto_order(self.id)
 
-        self.update(updated_order_info)
+        self.update()
