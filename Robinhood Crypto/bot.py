@@ -296,7 +296,7 @@ class SpotGridTradingBot():
         Prints out the lastest information out to console
         """
         
-        print("===========" + time.ctime() + "===========")
+        print(time.ctime())
         
         print("mode: " + self.mode)
         print("is_static: " + str(self.is_static))
@@ -999,7 +999,7 @@ class SpotGridTradingBot():
         """
         if self.last_discord_post is None or time.time() - self.last_discord_post >= self.discord_latency_in_hours * 3600:
             message = ""
-            message += "===========" + time.ctime() + "===========\n"
+            message += time.ctime() + "\n"
             message += "=============================================\n"
             message += "mode: " + self.mode + "\n"
             message += "is_static: " + str(self.is_static) + "\n"
