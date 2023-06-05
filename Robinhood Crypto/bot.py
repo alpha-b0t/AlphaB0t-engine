@@ -289,7 +289,7 @@ class SpotGridTradingBot():
         
         print("crypto equity: $" + str(round(self.get_crypto_holdings_capital(), 2)))
         print("cash: " + self.display_cash())
-        print("crypto equity and cash: $" + self.display_crypto_equity_and_cash())
+        print("crypto equity and cash: " + self.display_crypto_equity_and_cash())
         
         print("profit: " + self.display_profit() + " (" + self.display_percent_change() + ")")
 
