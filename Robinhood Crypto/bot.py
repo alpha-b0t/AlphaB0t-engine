@@ -288,8 +288,8 @@ class SpotGridTradingBot():
         print(self.display_bought_price())
         
         print("crypto equity: $" + str(round(self.get_crypto_holdings_capital(), 2)))
-        print("cash: $" + str(round(self.available_cash, 2)))
-        print("crypto equity and cash: $" + str(round(self.available_cash + self.get_crypto_holdings_capital(), 2)))
+        print("cash: " + self.display_cash())
+        print("crypto equity and cash: $" + self.display_crypto_equity_and_cash())
         
         print("profit: " + self.display_profit() + " (" + self.display_percent_change() + ")")
 
@@ -740,6 +740,31 @@ class SpotGridTradingBot():
         
         return ', '.join(result[:granularity])
     
+    def display_cash(self):
+        """
+        Returns a string containing the available cash amount
+        """
+        if self.available_cash < 0:
+            text = '-$'
+        else:
+            text = '$'
+        
+        text += str(abs(round(self.available_cash, 2)))
+
+        return text
+    
+    def display_crypto_equity_and_cash(self):
+        value = round(self.available_cash + self.get_crypto_holdings_capital(), 2)
+        
+        if value < 0:
+            text = '-$'
+        else:
+            text = '$'
+        
+        text += str(abs(value))
+
+        return text
+    
     def display_holdings(self):
         """
         Returns a string listing the amount of crypto held and the latest price to be printed out
@@ -961,8 +986,8 @@ class SpotGridTradingBot():
             message += 'crypto average bought price:\n'
             message += self.display_bought_price() + '\n'
             message += "crypto equity: $" + str(round(self.get_crypto_holdings_capital(), 2)) + '\n'
-            message += "cash: $" + str(round(self.available_cash, 2)) + '\n'
-            message += "crypto equity and cash: $" + str(round(self.available_cash + self.get_crypto_holdings_capital(), 2)) + '\n'
+            message += "cash: " + self.display_cash() + '\n'
+            message += "crypto equity and cash: " + self.display_crypto_equity_and_cash() + '\n'
             message += "profit: " + self.display_profit() + " (" + self.display_percent_change() + ")\n"
 
             message += self.crypto + " ask price: $" + str(self.round_to_min_order_price_increment(self.crypto_quote['ask_price'])) + '\n'
