@@ -1,5 +1,6 @@
 import robin_stocks.robinhood as rh
 from order import *
+from error_queue import ErrorQueue, ErrorQueueLimitExceededError
 import math
 import time
 from discord import SyncWebhook
@@ -26,7 +27,12 @@ class SpotGridTradingBot():
             'is_static': False,
             'send_to_discord': True,
             'discord_latency_in_hours': 1,
-            'discord_url': ''
+            'discord_url': '',
+            'max_error_count': 20,
+            'error_latency_in_sec': 60,
+            'init_buy_error_latency_in_sec': 15,
+            'init_buy_error_max_count': 5,
+            'cancel_orders_upon_exit': 'all/buy/sell/none'
         }
         """
         self.check_config(config)
@@ -54,7 +60,15 @@ class SpotGridTradingBot():
             self.discord_webhook = SyncWebhook.from_url(config['discord_url'])
             self.discord_latency_in_hours = float(config['discord_latency_in_hours'])
             self.last_discord_post = None
-
+        
+        self.error_latency = config['error_latency_in_sec']
+        self.max_error_count = int(config['max_error_count'])
+        
+        self.error_queue = ErrorQueue(self.error_latency, self.max_error_count)
+        
+        self.init_buy_error_latency = config['init_buy_error_latency_in_sec']
+        self.init_buy_error_max_count = int(config['init_buy_error_max_count'])
+        self.cancel_orders_upon_exit = config['cancel_orders_upon_exit']
         self.login()
 
         self.crypto_meta_data = rh.crypto.get_crypto_info(self.crypto)
@@ -111,7 +125,17 @@ class SpotGridTradingBot():
             assert config['discord_latency_in_hours'] > 0
             assert type(config['discord_url']) == str
             assert len(config['discord_url']) > 0
-
+        assert type(config['max_error_count']) == int
+        assert type(config['error_latency_in_sec']) == float or type(config['error_latency_in_sec']) == int
+        assert config['error_latency_in_sec'] > 0
+        if config['mode'] == 'live':
+            assert type(config['init_buy_error_latency_in_sec']) == int or type(config['init_buy_error_latency_in_sec']) == float
+            assert config['init_buy_error_latency_in_sec'] > 0
+            assert type(config['init_buy_error_max_count']) == int
+            assert config['init_buy_error_max_count'] > 0
+        assert type(config['cancel_orders_upon_exit']) == str
+        assert config['cancel_orders_upon_exit'] in ['all', 'buy', 'sell', 'none']
+        
         print("configuration test: PASSED")
     
     def login(self):
@@ -154,24 +178,22 @@ class SpotGridTradingBot():
                 else:
                     self.test_fetch_balances()
                 
-                self.update_output()
+                self.error_queue.update()
 
             # Check continue_trading
             while self.continue_trading():
+                self.crypto_quote = self.get_latest_quote(self.crypto)
                 if self.mode == 'live':
                     if self.is_static:
                         self.update_orders_static()
                     else:
                         self.update_orders()
                 else:
-                    self.crypto_quote = self.get_latest_quote(self.crypto)
                     if self.is_static:
                         self.test_update_orders_static()
                     else:
                         self.test_update_orders()
-
-                time.sleep(self.latency)
-
+                
                 if self.mode == 'live':
                     self.fetch_balances()
                 else:
@@ -181,13 +203,21 @@ class SpotGridTradingBot():
                 
                 if self.send_to_discord:
                     self.send_message_to_discord()
+                
+                self.error_queue.update()
+                time.sleep(self.latency)
             
             if self.send_to_discord:
                 self.send_end_message_to_discord()
                 self.send_loss_exceeded_message_to_discord()
 
             # Cancel all open crypto orders
-            cancel_all_orders()
+            if self.cancel_orders_upon_exit == 'all':
+                cancel_all_orders()
+            elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
+                cancel_all_side_orders(self.cancel_orders_upon_exit)
+            else:
+                pass
 
             # Log out
             self.logout()
@@ -200,13 +230,38 @@ class SpotGridTradingBot():
                 self.send_error_message_to_discord(ex, 'KeyboardInterrupt')
                 self.discord_webhook
             
-            cancel_all_orders()
+            if self.cancel_orders_upon_exit == 'all':
+                cancel_all_orders()
+            elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
+                cancel_all_side_orders(self.cancel_orders_upon_exit)
+            else:
+                pass
+            
             self.logout()
         
         except TypeError as ex:
             # Robinhood Internal Error
             # 503 Server Error: Service Unavailable for url: https://api.robinhood.com/marketdata/forex/quotes/76637d50-c702-4ed1-bcb5-5b0732a81f48/
             print("Robinhood Internal Error: TypeError: continuing trading")
+            
+            try:
+                self.error_queue.update()
+                self.error_queue.append(time.time())
+            except ErrorQueueLimitExceededError as ex:
+                if self.send_to_discord:
+                    self.send_end_message_to_discord()
+                    self.send_error_message_to_discord(ex, 'Too many TypeErrors occured')
+                
+                if self.cancel_orders_upon_exit == 'all':
+                    cancel_all_orders()
+                elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
+                    cancel_all_side_orders(self.cancel_orders_upon_exit)
+                else:
+                    pass
+                
+                self.logout()
+                
+                raise ex
 
             if self.send_to_discord:
                 self.send_error_message_to_discord(ex, 'TypeError')
@@ -219,6 +274,25 @@ class SpotGridTradingBot():
             # 503 Service Error: Service Unavailable for url: https://api.robinhood.com/portfolios/
             # 500 Server Error: Internal Server Error for url: https://api.robinhood.com/portfolios/
             print("Robinhood Internal Error: KeyError: continuing trading")
+            
+            try:
+                self.error_queue.update()
+                self.error_queue.append(time.time())
+            except ErrorQueueLimitExceededError as ex:
+                if self.send_to_discord:
+                    self.send_end_message_to_discord()
+                    self.send_error_message_to_discord(ex, 'Too many KeyErrors occured')
+                
+                if self.cancel_orders_upon_exit == 'all':
+                    cancel_all_orders()
+                elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
+                    cancel_all_side_orders(self.cancel_orders_upon_exit)
+                else:
+                    pass
+                
+                self.logout()
+                
+                raise ex
 
             if self.send_to_discord:
                 self.send_error_message_to_discord(ex, 'KeyError')
@@ -233,7 +307,13 @@ class SpotGridTradingBot():
                 self.send_end_message_to_discord()
                 self.send_error_message_to_discord(ex, 'Unknown')
             
-            cancel_all_orders()
+            if self.cancel_orders_upon_exit == 'all':
+                cancel_all_orders()
+            elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
+                cancel_all_side_orders(self.cancel_orders_upon_exit)
+            else:
+                pass
+            
             self.logout()
             
             raise ex
@@ -259,7 +339,6 @@ class SpotGridTradingBot():
         self.profit = self.available_cash + self.get_crypto_holdings_capital() - self.initial_cash - self.initial_crypto_capital
 
         self.percent_change = self.profit * 100 / self.cash
-        
     
     def continue_trading(self, override=None):
         """
@@ -448,6 +527,7 @@ class SpotGridTradingBot():
         # Place market order for cryptocurrency
         if self.mode == 'live':
             rh.orders.order_buy_crypto_by_price(self.crypto, initial_buy_amount, timeInForce='gtc', jsonify=True)
+            #rh.orders.order_buy_crypto_limit(self.crypto, self.round_to_min_order_quantity_increment(initial_buy_amount/self.crypto_quote['ask_price']), self.round_to_min_order_price_increment(self.crypto_quote['ask_price']), timeInForce='gtc', jsonfiy=True)
         else:
             print("Placing a market order for $" + str(initial_buy_amount) + " at an ask price of $" + str(self.crypto_quote['ask_price']))
 
@@ -469,8 +549,17 @@ class SpotGridTradingBot():
                     self.grids['order_' + str(i)]['order'] = None
             elif self.grids['order_' + str(i)]['side'] == 'sell' and self.grids['order_' + str(i)]['status'] == 'active':
                 if self.mode == 'live':
-                    #self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
-                    self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_sell_crypto_limit(self.crypto, self.round_to_min_order_quantity_increment(self.cash_per_level/self.grids['order_' + str(i)]['price']), self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+                    err_count = 0
+                    while err_count < self.init_buy_error_max_count:
+                        try:
+                            #self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_sell_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+                            self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_sell_crypto_limit(self.crypto, self.round_to_min_order_quantity_increment(self.cash_per_level/self.grids['order_' + str(i)]['price']), self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+                        except KeyError as ex:
+                            err_count += 1
+                            if err_count >= self.init_buy_error_max_count:
+                                raise ex
+                            else:
+                                time.sleep(self.init_buy_error_latency)
                 else:
                     print("Placing a limit sell order for $" + str(self.cash_per_level) + " at a price of $" + str(self.grids['order_' + str(i)]['price']))
                     self.grids['order_' + str(i)]['order'] = None

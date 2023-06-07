@@ -28,6 +28,19 @@ def get_all_open_orders():
 
     return open_orders
 
+def cancel_all_side_orders(side):
+    assert side in ['buy', 'sell']
+    open_orders = get_all_open_orders()
+    specific_orders = []
+
+    for i in range(len(open_orders)):
+        if open_orders[i].side == side:
+            specific_orders.append(open_orders[i])
+    
+    for j in range(len(specific_orders)):
+        specific_orders[j].cancel()
+    return
+
 class Order():
     def __init__(self, order_info):
         """
