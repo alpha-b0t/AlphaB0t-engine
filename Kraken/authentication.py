@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import base64
 
-def get_kraken_signature(urlpath, data, secret):
+def get_kraken_signature(urlpath, data, secret) -> str:
 
     postdata = urllib.parse.urlencode(data)
     encoded = (str(data['nonce']) + postdata).encode()
