@@ -1,15 +1,9 @@
 import time
-import os
 import requests
 import urllib.parse
 import hashlib
 import hmac
 import base64
-
-# Read Kraken API key and secret stored in environment variables
-api_url = "https://api.kraken.com"
-api_key = os.environ['KRAKEN_API_KEY']
-api_sec = os.environ['KRAKEN_API_SEC']
 
 def get_kraken_signature(urlpath, data, secret) -> str:
 
@@ -31,7 +25,7 @@ def kraken_authenticated_request(uri_path, data, api_key, api_sec):
     headers['API-Sign'] = get_kraken_signature(uri_path, data, api_sec)         
 
     req = requests.post(
-        url=(api_url + uri_path),
+        url=('https://api.kraken.com' + uri_path),
         headers=headers,
         data=data
     )
@@ -40,16 +34,3 @@ def kraken_authenticated_request(uri_path, data, api_key, api_sec):
 
 def get_nonce():
     return str(int(1000*time.time()))
-
-# Construct the request and print the result
-resp = kraken_authenticated_request(
-    uri_path='/0/private/TradeBalance',
-    data={
-        "nonce": get_nonce(),
-        "asset": "USD"
-    },
-    api_key=api_key,
-    api_sec=api_sec
-)
-
-print(resp.json())
