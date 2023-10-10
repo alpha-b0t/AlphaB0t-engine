@@ -7,3 +7,9 @@ class GridTradingBot():
     
     def stop(self):
         return
+    
+    def pause(self):
+        return
+    
+    def resume(self):
+        return
