@@ -7,10 +7,8 @@ import base64
 import time
 
 class Exchange():
-    def __init__(self, name, base_url, endpoints):
-        self.name = name
-        self.base_url = base_url
-        self.endpoints = endpoints
+    def __init__(self):
+        return
     
     def login(self):
         return
@@ -132,3 +130,6 @@ class KrakenExchange():
     
     def get_nonce(self):
         return str(int(1000*time.time()))
+    
+    def get_exchange_status(self):
+        return self.kraken_public_request('/0/public/SystemStatus').json()

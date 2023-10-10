@@ -1,6 +1,6 @@
 from dotenv import dotenv_values
 
-class Config():
+class GridTradingBotConfig():
     def __init__(self):
         env_config = dotenv_values(".env")
     
@@ -32,3 +32,7 @@ class Config():
         }
 
         del env_config
+
+class ExchangeConfig():
+    def __init__(self):
+        return
