@@ -61,10 +61,10 @@ class GridTradingBot():
 
             if self.mode == 'live':
                 assert self.available_cash >= self.cash
-        except Exception as err:
+        except Exception as e:
             self.logout()
 
-            raise err
+            raise e
     
     def check_config(self, config):
         """
@@ -204,12 +204,12 @@ class GridTradingBot():
             # Log out
             self.logout()
         
-        except KeyboardInterrupt as err:
+        except KeyboardInterrupt as e:
             print("User ended execution of program.")
 
             if self.send_to_discord:
                 self.send_end_message_to_discord()
-                self.send_error_message_to_discord(err, 'KeyboardInterrupt')
+                self.send_error_message_to_discord(e, 'KeyboardInterrupt')
                 self.discord_webhook
             
             if self.cancel_orders_upon_exit == 'all':
@@ -221,7 +221,7 @@ class GridTradingBot():
             
             self.logout()
         
-        except TypeError as err:
+        except TypeError as e:
             # Robinhood Internal Error
             # 503 Server Error: Service Unavailable for url: https://api.robinhood.com/marketdata/forex/quotes/76637d50-c702-4ed1-bcb5-5b0732a81f48/
             print("Robinhood Internal Error: TypeError: continuing trading")
@@ -229,10 +229,10 @@ class GridTradingBot():
             try:
                 self.error_queue.update()
                 self.error_queue.append(time.time())
-            except ErrorQueueLimitExceededError as err:
+            except ErrorQueueLimitExceededError as e:
                 if self.send_to_discord:
                     self.send_end_message_to_discord()
-                    self.send_error_message_to_discord(err, 'Too many TypeErrors occured')
+                    self.send_error_message_to_discord(e, 'Too many TypeErrors occured')
                 
                 if self.cancel_orders_upon_exit == 'all':
                     cancel_all_orders()
@@ -243,15 +243,15 @@ class GridTradingBot():
                 
                 self.logout()
                 
-                raise err
+                raise e
 
             if self.send_to_discord:
-                self.send_error_message_to_discord(err, 'TypeError')
+                self.send_error_message_to_discord(e, 'TypeError')
             
             # Continue trading
             self.run(True)
         
-        except KeyError as err:
+        except KeyError as e:
             # Robinhood Internal Error
             # 503 Service Error: Service Unavailable for url: https://api.robinhood.com/portfolios/
             # 500 Server Error: Internal Server Error for url: https://api.robinhood.com/portfolios/
@@ -260,10 +260,10 @@ class GridTradingBot():
             try:
                 self.error_queue.update()
                 self.error_queue.append(time.time())
-            except ErrorQueueLimitExceededError as err:
+            except ErrorQueueLimitExceededError as e:
                 if self.send_to_discord:
                     self.send_end_message_to_discord()
-                    self.send_error_message_to_discord(err, 'Too many KeyErrors occured')
+                    self.send_error_message_to_discord(e, 'Too many KeyErrors occured')
                 
                 if self.cancel_orders_upon_exit == 'all':
                     cancel_all_orders()
@@ -274,20 +274,20 @@ class GridTradingBot():
                 
                 self.logout()
                 
-                raise err
+                raise e
 
             if self.send_to_discord:
-                self.send_error_message_to_discord(err, 'KeyError')
+                self.send_error_message_to_discord(e, 'KeyError')
             
             # Continue trading
             self.run(True)
         
-        except Exception as err:
+        except Exception as e:
             print("An unexpected error occured: cancelling open orders and logging out")
 
             if self.send_to_discord:
                 self.send_end_message_to_discord()
-                self.send_error_message_to_discord(err, 'Unknown')
+                self.send_error_message_to_discord(e, 'Unknown')
             
             if self.cancel_orders_upon_exit == 'all':
                 cancel_all_orders()
@@ -298,7 +298,7 @@ class GridTradingBot():
             
             self.logout()
             
-            raise err
+            raise e
     
     def get_balances(self):
         """
