@@ -207,8 +207,6 @@ class GridBot():
                 cancel_all_orders()
             elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
                 cancel_all_side_orders(self.cancel_orders_upon_exit)
-            else:
-                pass
 
             # Log out
             self.logout()
@@ -225,8 +223,6 @@ class GridBot():
                 cancel_all_orders()
             elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
                 cancel_all_side_orders(self.cancel_orders_upon_exit)
-            else:
-                pass
             
             self.logout()
         
@@ -247,8 +243,6 @@ class GridBot():
                     cancel_all_orders()
                 elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
                     cancel_all_side_orders(self.cancel_orders_upon_exit)
-                else:
-                    pass
                 
                 self.logout()
                 
@@ -278,8 +272,6 @@ class GridBot():
                     cancel_all_orders()
                 elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
                     cancel_all_side_orders(self.cancel_orders_upon_exit)
-                else:
-                    pass
                 
                 self.logout()
                 
@@ -302,8 +294,6 @@ class GridBot():
                 cancel_all_orders()
             elif self.cancel_orders_upon_exit == 'buy' or self.cancel_orders_upon_exit == 'sell':
                 cancel_all_side_orders(self.cancel_orders_upon_exit)
-            else:
-                pass
             
             self.logout()
             
@@ -315,8 +305,45 @@ class GridBot():
     def resume(self):
         self.start(True)
     
-    def backtest(self):
-        pass
+    def backtest(self, crypto_symbol):
+        try:
+            result_data = {
+                'initial_cash_balance': 1000,
+                'initial_crypto_equity': 0,
+                'initial_balance': 1000,
+                'final_cash_balance': None,
+                'final_crypto_equity': None,
+                'final_balance': None,
+                'profit': 0,
+                'percent_profit': 0,
+                'crypto': crypto_symbol,
+                'interval': self.backtest_interval,
+                'span': self.backtest_span,
+                'bounds': self.backtest_bounds
+            }
+
+            # Get crypto historical data
+            # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#robin_stocks.robinhood.crypto.get_crypto_historicals
+            crypto_historical_data = rh.crypto.get_crypto_historicals(
+                symbol=crypto_symbol,
+                interval=self.backtest_interval,
+                span=self.backtest_span,
+                bounds=self.backtest_bounds
+            )
+
+            # TODO: Initialize grids
+
+            for i in range(len(crypto_historical_data)):
+                # TODO: Implement logic
+                pass
+
+            return result_data
+        except Exception as e:
+            print("An unexpected error occured: logging out")
+            
+            self.logout()
+
+            raise e
     
     def get_balances(self):
         """
@@ -499,7 +526,7 @@ class GridBot():
             self.profit = self.available_cash + self.get_crypto_holdings_capital() - self.initial_cash - self.initial_crypto_capital
             self.percent_change = self.profit * 100 / self.cash
         
-        # Place buy orders and possibly sell orders
+        # Place limit buy orders and possibly limit sell orders
         for i in range(len(self.grids)):
             if self.grids[f'order_{i}']['side'] == 'buy' and self.grids[f'order_{i}']['status'] == 'active':
                 if self.mode == 'live':
@@ -550,7 +577,9 @@ class GridBot():
 
         # Determine what the prices are at each level
         for i in range(self.level_num):
-            self.grids['order_' + str(i)] = {'price': round_to_min_order_price_increment(self.lower_price + i*(self.upper_price - self.lower_price)/(self.level_num-1), self.crypto_meta_data['min_order_price_increment'])}
+            self.grids[f'order_{i}'] = {
+                'price': round_to_min_order_price_increment(self.lower_price + i*(self.upper_price - self.lower_price)/(self.level_num-1), self.crypto_meta_data['min_order_price_increment'])
+            }
 
         # Get crypto quote
         self.crypto_quote = self.get_latest_quote(self.crypto)
@@ -565,31 +594,31 @@ class GridBot():
 
         # Mark orders as buys and sells
         for i in range(len(self.grids)):
-            if self.crypto_quote['ask_price'] > self.grids['order_' + str(i)]['price']:
-                self.grids['order_' + str(i)]['side'] = 'buy'
+            if self.crypto_quote['ask_price'] > self.grids[f'order_{i}']['price']:
+                self.grids[f'order_{i}']['side'] = 'buy'
             else:
-                self.grids['order_' + str(i)]['side'] = 'sell'
+                self.grids[f'order_{i}']['side'] = 'sell'
 
         # Mark all buy grid lines as active and all sell grid lines as inactive
         for i in range(len(self.grids)):
-            if self.grids['order_' + str(i)]['side'] == 'buy':
-                self.grids['order_' + str(i)]['status'] = 'active'
-            elif self.grids['order_' + str(i)]['side'] == 'sell':
-                self.grids['order_' + str(i)]['status'] = 'inactive'
+            if self.grids[f'order_{i}']['side'] == 'buy':
+                self.grids[f'order_{i}']['status'] = 'active'
+            elif self.grids[f'order_{i}']['side'] == 'sell':
+                self.grids[f'order_{i}']['status'] = 'inactive'
         
         print_grids(self.grids, self.cash_per_level)
         
         # Place buy orders
         for i in range(len(self.grids)):
-            if self.grids['order_' + str(i)]['side'] == 'buy' and self.grids['order_' + str(i)]['status'] == 'active':
+            if self.grids[f'order_{i}']['side'] == 'buy' and self.grids[f'order_{i}']['status'] == 'active':
                 if self.mode == 'live':
-                    #self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
-                    self.grids['order_' + str(i)]['order'] = Order(rh.orders.order_buy_crypto_limit(self.crypto, round_to_min_order_quantity_increment(self.cash_per_level/self.grids['order_' + str(i)]['price'], self.crypto_meta_data['min_order_quantity_increment']), self.grids['order_' + str(i)]['price'], timeInForce='gtc', jsonify=True))
+                    #self.grids[f'order_{i}']['order'] = Order(rh.orders.order_buy_crypto_limit_by_price(self.crypto, self.cash_per_level, self.grids[f'order_{i}']['price'], timeInForce='gtc', jsonify=True))
+                    self.grids[f'order_{i}']['order'] = Order(rh.orders.order_buy_crypto_limit(self.crypto, round_to_min_order_quantity_increment(self.cash_per_level/self.grids[f'order_{i}']['price'], self.crypto_meta_data['min_order_quantity_increment']), self.grids[f'order_{i}']['price'], timeInForce='gtc', jsonify=True))
                 else:
-                    print("Placing a limit buy order for $" + str(self.cash_per_level) + " at a price of $" + str(self.grids['order_' + str(i)]['price']))
-                    self.grids['order_' + str(i)]['order'] = None
+                    print("Placing a limit buy order for $" + str(self.cash_per_level) + " at a price of $" + str(self.grids[f'order_{i}']['price']))
+                    self.grids[f'order_{i}']['order'] = None
             else:
-                self.grids['order_' + str(i)]['order'] = None
+                self.grids[f'order_{i}']['order'] = None
         
         print("finished grid initalization")
     
