@@ -5,6 +5,7 @@ import time
 from discord import SyncWebhook
 from RobinhoodCrypto.helpers import *
 from config import GridBotConfig
+import random
 
 class GridBot():
     def __init__(self, config: GridBotConfig):
@@ -45,6 +46,7 @@ class GridBot():
         self.login()
 
         self.crypto_meta_data = rh.crypto.get_crypto_info(self.crypto)
+        self.crypto_historical_data = None
 
         try:
             self.holdings, self.bought_price = self.get_holdings_and_bought_price()
@@ -334,18 +336,19 @@ class GridBot():
                 'bounds': self.backtest_bounds
             }
 
-            # Get crypto historical data
-            # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#robin_stocks.robinhood.crypto.get_crypto_historicals
-            try:
-                crypto_historical_data = rh.crypto.get_crypto_historicals(
-                    symbol=crypto_symbol,
-                    interval=self.backtest_interval,
-                    span=self.backtest_span,
-                    bounds=self.backtest_bounds
-                )
-            except TypeError as e:
-                print(f"Failed to fetch crypto historical data for {crypto_symbol} for the following parameters: interval={self.backtest_interval}, span={self.backtest_span}, bounds={self.backtest_span}.")
-                raise e
+            if self.crypto_historical_data == None:
+                # Get crypto historical data
+                # https://robin-stocks.readthedocs.io/en/latest/robinhood.html#robin_stocks.robinhood.crypto.get_crypto_historicals
+                try:
+                    self.crypto_historical_data = rh.crypto.get_crypto_historicals(
+                        symbol=crypto_symbol,
+                        interval=self.backtest_interval,
+                        span=self.backtest_span,
+                        bounds=self.backtest_bounds
+                    )
+                except TypeError as e:
+                    print(f"Failed to fetch crypto historical data for {crypto_symbol} for the following parameters: interval={self.backtest_interval}, span={self.backtest_span}, bounds={self.backtest_span}.")
+                    raise e
 
             # Initialize grids
             """
@@ -369,7 +372,7 @@ class GridBot():
                 }
 
             # Get crypto quote
-            self.crypto_quote = crypto_historical_data[0]
+            self.crypto_quote = self.crypto_historical_data[0]
 
             """
             Notes:
@@ -437,16 +440,16 @@ class GridBot():
             
             print("finished grid initalization")
 
-            print(f"1/{len(crypto_historical_data)}")
+            print(f"1/{len(self.crypto_historical_data)}")
 
-            for i in range(1, len(crypto_historical_data)):
-                print(f"{i+1}/{len(crypto_historical_data)}")
+            for i in range(1, len(self.crypto_historical_data)):
+                print(f"{i+1}/{len(self.crypto_historical_data)}")
 
                 # Check if backtesting should continue
                 if result['profit'] >= -1 * self.loss_threshold and result['percent_change'] >= -1 * self.loss_percentage:
                     # Continue iterating
                     # Get the latest crypto prices
-                    self.crypto_quote = crypto_historical_data[i]
+                    self.crypto_quote = self.crypto_historical_data[i]
 
                     # Update the orders accordingly
                     for i in range(len(self.grids)):
@@ -508,6 +511,55 @@ class GridBot():
             self.logout()
 
             raise e
+    
+    def optimize_parameters_genetic(self, level_num_values, upper_price_values, lower_price_values, population_size=50, generations=100, mutation_rate=0.1):
+        # TODO: Need to refactor
+        # Initialize a random population
+        population = [(random.choice(level_num_values), random.uniform(upper_price_values[0], upper_price_values[-1]), random.uniform(lower_price_values[0], lower_price_values[-1])) for _ in range(population_size)]
+
+        # Main optimization loop
+        for generation in range(generations):
+            # Evaluate the fitness of each individual in the population
+            fitness_scores = [self.simulate_grid_trading(*params) for params in population]
+
+            # Select the top-performing individuals
+            selected_indices = sorted(range(population_size), key=lambda i: fitness_scores[i], reverse=True)
+            selected_population = [population[i] for i in selected_indices]
+
+            # Crossover and mutation
+            new_population = []
+            for _ in range(population_size):
+                parent1, parent2 = random.choices(selected_population, k=2)
+                child = [random.choice(parent1[i], parent2[i]) for i in range(3)]
+                child = self.mutate(child, level_num_values, upper_price_values, lower_price_values, mutation_rate)
+                new_population.append(child)
+
+            # Replace the old population with the new population
+            population = new_population
+
+        # The best parameter set is the one with the highest fitness score
+        best_params = population[0]
+        best_performance = self.simulate_grid_trading(*best_params)
+        print("Best Parameters:", best_params)
+        print("Best Performance:", best_performance)
+    
+    def simulate_grid_trading(self, level_num, upper_price, lower_price):
+        """Simulates grid trading using given parameters"""
+        # TODO: Implement
+        return random.random()
+    
+    def mutate(self, genes, level_num_values, upper_price_values, lower_price_values, mutation_rate):
+        """Mutate the individual's genetic sequence."""
+        # TODO: Need to refactor
+        for i in range(3):
+            if random.random() < mutation_rate:
+                if i == 0:
+                    genes[i] = random.choice(level_num_values)
+                elif i == 1:
+                    genes[i] = random.uniform(upper_price_values[0], upper_price_values[-1])
+                else:
+                    genes[i] = random.uniform(lower_price_values[0], lower_price_values[-1])
+        return genes
     
     def get_balances(self):
         """
