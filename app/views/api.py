@@ -67,7 +67,8 @@ def delete_task(task_id):
 def get_version():
     """Access version id."""
     try:
-        result = Result(data={"version": "1.0.0"})
+        __version__ = '1.0.0'
+        result = Result(data={"version": __version__})
         return result.to_api_response()
     except Exception as e:
         result = Result(status="failed", message=f"Internal Server Error: {e}", code=500)
