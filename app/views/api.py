@@ -48,11 +48,14 @@ def logout():
         return result.to_api_response()
 
 # Get user
-@api_bp.route("/api/user/get", methods=["GET"])
-def get_user():
+@api_bp.route("/api/user/<int:user_id>", methods=["GET"])
+def get_user(user_id):
     try:
         result = Result()
+
         # TODO: Implement logic
+        result.data = {"user_id": user_id}
+
         return result.to_api_response()
     except Exception as e:
         result = Result(status="failed", message=f"Internal Server Error: {e}", code=500)
@@ -83,7 +86,7 @@ def get_supported_exchanges():
         return result.to_api_response()
 
 # Get genetically optimized parameters from backtesting
-@api_bp.route("/api/backtest/optimize", methods=["GET"])
+@api_bp.route("/api/optimizations", methods=["GET"])
 def get_optimized_parameters():
     """Get optimized parameters for a Grid Trading Bot."""
     try:
@@ -94,10 +97,10 @@ def get_optimized_parameters():
         result = Result(status="failed", message=f"Internal Server Error: {e}", code=500)
         return result.to_api_response()
 
-# Create a grid trading bot
-@api_bp.route("/api/grid-bots/create", methods=["POST"])
-def create_grid_bot():
-    """Create a Grid Trading Bot."""
+# Add a grid trading bot
+@api_bp.route("/api/grid-bots/add", methods=["POST"])
+def add_grid_bot():
+    """Add a Grid Trading Bot."""
     try:
         result = Result()
         # TODO: Implement logic
@@ -167,12 +170,15 @@ def update_grid_bot():
         return result.to_api_response()
 
 # Get a grid trading bot
-@api_bp.route("/api/grid-bots/get", methods=["GET"])
-def get_grid_bot():
+@api_bp.route("/api/grid-bots/<string:grid_bot_id>", methods=["GET"])
+def get_grid_bot(grid_bot_id):
     """Get the Grid Trading Bot."""
     try:
         result = Result()
+
         # TODO: Implement logic
+        result.data = {"grid_bot_id": grid_bot_id}
+
         return result.to_api_response()
     except Exception as e:
         result = Result(status="failed", message=f"Internal Server Error: {e}", code=500)
