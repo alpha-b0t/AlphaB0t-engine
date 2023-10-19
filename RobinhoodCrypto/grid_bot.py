@@ -4,11 +4,11 @@ from RobinhoodCrypto.error_queue import ErrorQueue, ErrorQueueLimitExceededError
 import time
 from discord import SyncWebhook
 from RobinhoodCrypto.helpers import *
-from config import GridBotConfig
+from config import GRIDBotConfig
 import random
 
-class GridBot():
-    def __init__(self, config: GridBotConfig):
+class GRIDBot():
+    def __init__(self, config: GRIDBotConfig):
         self.check_config(config)
 
         self.crypto = config.crypto
@@ -65,7 +65,7 @@ class GridBot():
 
             raise e
     
-    def check_config(self, config: GridBotConfig):
+    def check_config(self, config: GRIDBotConfig):
         """
         Time: O(1)
         Space: O(1)
@@ -161,8 +161,8 @@ class GridBot():
                 
                 self.error_queue.update()
 
-            # Check continue_trading
-            while self.continue_trading():
+            # Check if the loss is acceptable
+            while self.is_loss_acceptable():
                 # Get latest crypto prices
                 self.crypto_quote = self.get_latest_quote(self.crypto)
 
@@ -595,7 +595,7 @@ class GridBot():
 
         self.percent_change = self.profit * 100 / self.cash
     
-    def continue_trading(self):
+    def is_loss_acceptable(self):
         """
         Time: O(1)
         Space: O(1)

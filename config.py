@@ -4,10 +4,11 @@ class AppConfig():
     def __init__(self):
         return
 
-class GridBotConfig():
+class GRIDBotConfig():
     def __init__(self):
         env_config = dotenv_values(".env")
 
+        self.exchange = env_config['EXCHANGE']
         self.crypto = env_config['CRYPTO']
         self.days_to_run = int(env_config['DAYS_TO_RUN'])
         self.mode = env_config['MODE']

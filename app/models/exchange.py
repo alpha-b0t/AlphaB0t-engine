@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import base64
 import time
+import json
 
 class Exchange():
     def __init__(self):
@@ -34,45 +35,11 @@ class Exchange():
     def get_crypto_holdings_capital(self):
         pass
     
-    def create_buy_order(self):
+    def create_order(self):
         pass
     
-    def cancel_buy_order(self):
+    def cancel_order(self):
         pass
-    
-    def create_sell_order(self):
-        pass
-    
-    def cancel_sell_order(self):
-        pass
-
-class RobinhoodCryptoExchange(Exchange):
-    def __init__(self):
-        super().__init__()
-    
-    def login(self):
-        """
-        Logs the user in with username and password with verification by sms text. This method does not store the session.
-        """
-        time_logged_in = 60 * 60 * 24 * self.days_to_run
-        
-        rh.authentication.login(expiresIn=time_logged_in,
-                                scope='internal',
-                                by_sms=True,
-                                store_session=False)
-        
-        print("login successful")
-    
-    def logout(self):
-        """
-        Attempts to log out the user unless already logged out.
-        """
-        try:
-            rh.authentication.logout()
-            
-            print('logout successful')
-        except:
-            print('already logged out: logout() can only be called when currently logged in')
 
 class KrakenExchange(Exchange):
     def __init__(self, api_key='', api_sec=''):
@@ -122,13 +89,13 @@ class KrakenExchange(Exchange):
 
         if query_parameters != {}:
             url += '?'
-            key_count = 0
+            first_key = True
             for key in query_parameters.keys():
-                if key_count != 0:
+                if not first_key:
                     url += '&'
+                    first_key = False
                 
                 url += f"{key}={query_parameters[key]}"
-                key_count += 1
         
         response = requests.get(url)
         return response
@@ -273,6 +240,8 @@ class KrakenExchange(Exchange):
     
     def cancel_order_batch(self, orders):
         """Cancel a batch of orders at once."""
+
+        # Here orders is a list of txids
         payload = {
             "orders": orders
         }
@@ -353,3 +322,149 @@ class KrakenExchange(Exchange):
         response = self.authenticated_request('/private/GetWebSocketsToken')
 
         return response.json()
+
+class CoinbaseExchange(Exchange):
+    def __init__(self, api_key='', api_sec='', api_passphrase=''):
+        super().__init__()
+        self.api_key = api_key
+        self.api_sec = api_sec
+        self.api_passphrase = api_passphrase
+        self.api_base_url = 'https://api.exchange.coinbase.com'
+    
+    def public_request(self, uri_path, query_parameters={}):
+        url = self.api_base_url + uri_path
+
+        if query_parameters != {}:
+            url += '?'
+            first_key = True
+            for key in query_parameters.keys():
+                if not first_key:
+                    url += '&'
+                    first_key = False
+                
+                url += f"{key}={query_parameters[key]}"
+        
+        response = requests.get(url)
+        return response
+    
+    def authenticated_request(self, method, uri_path, data={}):
+        timestamp = self.get_exchange_time()['epoch']
+
+        headers = {
+            "CB-ACCESS-KEY": self.api_key,
+            "CB-ACCESS-SIGN": self.get_signature(
+                timestamp=timestamp,
+                method=method,
+                path=f"{self.api_base_url}{uri_path}",
+                body=json.dumps(data) if data != {} else ''
+            ),
+            "CB-ACCESS-TIMESTAMP": timestamp,
+            "CB-ACCESS-PASSPHRASE": self.api_passphrase
+        }
+
+        if method == "GET":
+            response = requests.get(
+                url=f"{self.api_base_url}{uri_path}",
+                headers=headers,
+                params=data
+            )
+        elif method == "POST":
+            response = requests.post(
+                url=f"{self.api_base_url}{uri_path}",
+                headers=headers,
+                data=data
+            )
+        elif method == "PUT":
+            response = requests.put(
+                url=f"{self.api_base_url}{uri_path}",
+                headers=headers,
+                data=data
+            )
+        elif method == "DELETE":
+            response = requests.delete(
+                url=f"{self.api_base_url}{uri_path}",
+                headers=headers,
+                data=data
+            )
+        else:
+            raise ValueError("Unsupported HTTP method")
+        
+        return response
+
+    def get_signature(self, timestamp, method, path, body=''):
+        prehash_str = f"{timestamp}{method}{path}{body}"
+        encoded_str = prehash_str.encode('utf-8')
+        signature = hmac.new(self.api_sec.encode('utf-8'), encoded_str, hashlib.sha256).hexdigest()
+        return signature
+    
+    def get_exchange_time(self):
+        """Get the time from the exchange."""
+        response = self.public_request('/time')
+        return response.json()
+    
+    def get_currency(self, currency_id):
+        """Get a single currency by id."""
+        # https://docs.cloud.coinbase.com/exchange/reference/exchangerestapi_getcurrency
+        response = self.public_request(f"/currencies/{currency_id}")
+        return response.json()
+    
+    def get_trading_pairs(self):
+        """Gets a list of available currency pairs for trading."""
+        # https://docs.cloud.coinbase.com/exchange/reference/exchangerestapi_getproducts
+        response = self.public_request('/products')
+        return response.json()
+    
+    def get_product_info(self, product_id):
+        """Gets information about a specific trading pair."""
+        # https://docs.cloud.coinbase.com/exchange/reference/exchangerestapi_getproduct
+        response = self.public_request(f"/products/{product_id}")
+        return response.json()
+    
+    def get_product_candles(self, product_id, granularity='', start='', end=''):
+        """Gets historic rates for a product."""
+        # https://docs.cloud.coinbase.com/exchange/reference/exchangerestapi_getproductcandles
+        query_parameters = {}
+
+        if granularity != '':
+            query_parameters["granularity"] = granularity
+        
+        if start != '':
+            query_parameters["start"] = start
+        
+        if end != '':
+            query_parameters["end"] = end
+        
+        if query_parameters != {}:
+            response = self.public_request(f"/products/{product_id}/candles", query_parameters)
+        else:
+            response = self.public_request(f"/products/{product_id}/candles")
+        
+        return response.json()
+
+class RobinhoodCryptoExchange(Exchange):
+    def __init__(self):
+        super().__init__()
+    
+    def login(self):
+        """
+        Logs the user in with username and password with verification by sms text. This method does not store the session.
+        """
+        time_logged_in = 60 * 60 * 24 * self.days_to_run
+        
+        rh.authentication.login(expiresIn=time_logged_in,
+                                scope='internal',
+                                by_sms=True,
+                                store_session=False)
+        
+        print("login successful")
+    
+    def logout(self):
+        """
+        Attempts to log out the user unless already logged out.
+        """
+        try:
+            rh.authentication.logout()
+            
+            print('logout successful')
+        except:
+            print('already logged out: logout() can only be called when currently logged in')

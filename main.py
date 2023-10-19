@@ -1,12 +1,12 @@
-from RobinhoodCrypto.grid_bot import GridBot
-from config import GridBotConfig
+from RobinhoodCrypto.grid_bot import GRIDBot
+from config import GRIDBotConfig
 from RobinhoodCrypto.helpers import confirm_grids
 
 if __name__ == '__main__':
-    config = GridBotConfig()
+    config = GRIDBotConfig()
     
     if confirm_grids(config.upper_price, config.lower_price, config.level_num, config.cash):
-        grid_trader = GridBot(config)
+        grid_trader = GRIDBot(config)
 
         del config
 

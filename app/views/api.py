@@ -72,13 +72,15 @@ def update_user():
         result = Result(status="failed", message=f"Internal Server Error: {e}", code=500)
         return result.to_api_response()
 
-# Get supported exchanges
-@api_bp.route("/api/exchanges", methods=["GET"])
-def get_supported_exchanges():
+# Get user's exchanges
+@api_bp.route("/api/exchanges/<int:user_id>", methods=["GET"])
+def get_user_exchanges(user_id):
     try:
         result = Result()
 
-        result.data = ['Kraken']
+        result.data = {
+            "user_id": user_id
+        }
         
         return result.to_api_response()
     except Exception as e:
@@ -170,7 +172,7 @@ def update_grid_bot():
         return result.to_api_response()
 
 # Get a grid trading bot
-@api_bp.route("/api/grid-bots/<string:grid_bot_id>", methods=["GET"])
+@api_bp.route("/api/grid-bots/<int:grid_bot_id>", methods=["GET"])
 def get_grid_bot(grid_bot_id):
     """Get the Grid Trading Bot."""
     try:
