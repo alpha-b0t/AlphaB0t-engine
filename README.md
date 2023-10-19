@@ -1,4 +1,4 @@
-# platform-backend
+# trading-bot-platform-backend
 
 ## Tech stack
 
