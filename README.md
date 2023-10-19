@@ -3,9 +3,11 @@
 ## Useful links
 - https://medium.com/coinmonks/what-is-a-grid-trading-bot-3b58f3ec059b#:~:text=Grid%20Trading%20Bot%20is%20a,grid%20level%2C%20and%20vice%20versa.
 - https://levelup.gitconnected.com/creating-a-crypto-trading-bot-for-fun-and-profit-fbf8d74de8c6
+- https://www.binance.com/en/support/faq/binance-spot-grid-trading-parameters-688ff6ff08734848915de76a07b953dd
 
 ## Profitable grid parameters
 1. 2023-10-13
+EXCHANGE=Robinhood
 CRYPTO=LINK
 BACKTEST_INTERVAL=day
 BACKTEST_SPAN=3month
@@ -18,6 +20,7 @@ backtesting results:
 {'initial_cash_balance': 1000, 'initial_crypto_equity': 0, 'initial_balance': 1000, 'final_cash_balance': 666.6800000000001, 'final_crypto_equity': 60.05000000000002, 'final_balance': 1098.79, 'current_cash_balance': 666.6800000000001, 'current_crypto_equity': 60.05000000000002, 'profit': 103.72000000000003, 'percent_change': 10.372000000000003, 'crypto': 'LINK', 'interval': 'day', 'span': '3month', 'bounds': '24_7'}
 
 2. 2023-10-13
+EXCHANGE=Robinhood
 CRYPTO=LINK
 BACKTEST_INTERVAL=day
 BACKTEST_SPAN=year
@@ -209,6 +212,7 @@ In this genetic algorithm example, we start with a random population of paramete
 
 ## Example .env file
 ```
+EXCHANGE=Kraken
 CRYPTO=LINK
 DAYS_TO_RUN=30
 MODE=test

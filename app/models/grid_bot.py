@@ -1,6 +1,7 @@
-class GridBot():
-    def __init__(self, exchange):
+class GRIDBot():
+    def __init__(self, exchange, pair):
         self.exchange = exchange
+        self.pair = pair
     
     def start(self):
         pass
