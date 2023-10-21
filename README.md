@@ -12,7 +12,8 @@
 - C++
 
 ### Database
-- Postgres
+- PostgreSQL
+- Postico
 
 ### Version control
 - Git
@@ -29,8 +30,17 @@
 
 ## Getting started
 
+To run the application locally, run the following command in your terminal:
+```
+flask --app flaskr run --debug
+```
+
 ### Example .env file
 ```
+DATABASE_USERNAME=
+DATABASE_PASSWORD=
+DATABASE_PORT=
+DATABASE_NAME=
 EXCHANGE=Kraken
 PAIR=LINK
 DAYS_TO_RUN=30
@@ -56,6 +66,12 @@ CANCEL_ORDERS_UPON_EXIT=none
 - https://medium.com/coinmonks/what-is-a-grid-trading-bot-3b58f3ec059b#:~:text=Grid%20Trading%20Bot%20is%20a,grid%20level%2C%20and%20vice%20versa.
 - https://levelup.gitconnected.com/creating-a-crypto-trading-bot-for-fun-and-profit-fbf8d74de8c6
 - https://www.binance.com/en/support/faq/binance-spot-grid-trading-parameters-688ff6ff08734848915de76a07b953dd
+- https://www.postgresql.org/download/macosx/
+- https://postgresapp.com/
+- https://eggerapps.at/postico2/
+- https://flask.palletsprojects.com/en/2.3.x/tutorial/layout/
+- https://flask.palletsprojects.com/en/2.3.x/tutorial/factory/
+- https://flask-sqlalchemy.palletsprojects.com/en/3.1.x/
 
 ## Profitable grid parameters
 1. 2023-10-13
