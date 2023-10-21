@@ -2,7 +2,14 @@ from dotenv import dotenv_values
 
 class AppConfig():
     def __init__(self):
-        pass
+        env_config = dotenv_values(".env")
+
+        self.DATABASE_USERNAME = env_config['DATABASE_USERNAME']
+        self.DATABASE_PASSWORD = env_config['DATABASE_PASSWORD']
+        self.DATABASE_PORT = env_config['DATABASE_PORT']
+        self.DATABASE_NAME = env_config['DATABASE_NAME']
+
+        del env_config
 
 class GRIDBotConfig():
     def __init__(self):
