@@ -25,7 +25,7 @@ def get_status():
     try:
         result = Result()
 
-        result.data = {"API_status": "online"}
+        result.data = {"api_status": "online"}
 
         return result.to_api_response()
     except Exception as e:
