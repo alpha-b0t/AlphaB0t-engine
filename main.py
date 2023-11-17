@@ -32,23 +32,13 @@ if __name__ == '__main__':
         kraken_exchange = KrakenExchange(exchange_config)
         print(kraken_exchange)
 
-        # Get account balance
-        print("Account balance:")
-        print(kraken_exchange.get_account_balance())
-        
-        # Get extended balance
-        print("Extended balance:")
-        print(kraken_exchange.get_extended_balance())
-
-        # Get trade volume and fee schedule
-        print("Trade volume and fee schedule:")
-        print(kraken_exchange.get_trade_volume(gridbot_config.pair))
-
+        # Initialize Kraken gribot
         kraken_gridbot = KrakenGRIDBot(
             gridbot_config=gridbot_config,
             exchange_config=exchange_config
         )
 
+        # Start automated grid trading
         kraken_gridbot.start()
     else:
         # Run C++ executables
