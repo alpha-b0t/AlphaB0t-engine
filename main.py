@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     if exchange_config.exchange == 'Robinhood':
     
-        if confirm_grids(gridbot_config.upper_price, gridbot_config.lower_price, gridbot_config.level_num, gridbot_config.cash):
+        if confirm_grids(gridbot_config.upper_price, gridbot_config.lower_price, gridbot_config.level_num, gridbot_config.total_investment):
             grid_trader = GRIDBot(gridbot_config)
 
             simulation_metric = grid_trader.simulate_trading(
@@ -37,6 +37,7 @@ if __name__ == '__main__':
             gridbot_config=gridbot_config,
             exchange_config=exchange_config
         )
+        print(kraken_gridbot)
 
         # Start automated grid trading
         kraken_gridbot.start()

@@ -8,6 +8,19 @@ class Result():
         self.code = code
         self.meta = meta
     
+    def __repr__(self):
+        if self.status == '':
+            status_display = "''"
+        else:
+            status_display = self.status
+        
+        if self.message == '':
+            message_display = "''"
+        else:
+            message_display = self.message
+        
+        return f"{{Result status: {status_display}, data: {self.data}, message: {message_display}, code: {self.code}, meta: {self.meta}}}"
+    
     def to_json(self):
         return jsonify({
             "status": self.status,
