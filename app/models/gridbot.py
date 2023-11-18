@@ -41,13 +41,15 @@ class KrakenGRIDBot(GRIDBot):
     def __init__(self, gridbot_config: GRIDBotConfig, exchange_config: ExchangeConfig):
         self.exchange = KrakenExchange(exchange_config)
 
+        self.name = gridbot_config.name
         self.pair = gridbot_config.pair
         self.days_to_run = gridbot_config.days_to_run
         self.mode = gridbot_config.mode
         self.upper_price = gridbot_config.upper_price
         self.lower_price = gridbot_config.lower_price
         self.level_num = gridbot_config.level_num
-        self.cash = gridbot_config.cash
+        self.quantity_per_grid = gridbot_config.quantity_per_grid
+        self.total_investment = gridbot_config.total_investment
         self.stop_loss = gridbot_config.stop_loss
         self.take_profit = gridbot_config.take_profit
         self.base_currency = gridbot_config.base_currency
@@ -57,6 +59,9 @@ class KrakenGRIDBot(GRIDBot):
         self.init_but_error_latency = gridbot_config.init_buy_error_latency_in_sec
         self.init_buy_error_max_count = gridbot_config.init_buy_error_max_count
         self.cancel_orders_upon_exit = gridbot_config.cancel_orders_upon_exit
+
+        # Initialize the timer
+        self.start_time = time.time()
 
         # Perform validation on the configuration
         self.check_config()
@@ -94,6 +99,21 @@ class KrakenGRIDBot(GRIDBot):
         self.tick_size = pair_info['tick_size']
         self.pair_status = pair_info['status']
 
+        # Check if either self.quantity_per_grid or self.total_investment is being used to determine total investment, quantity per grid
+        if self.quantity_per_grid == 0:
+            # Use self.total_investment to determine total investment, quantity per level
+            self.quantity_per_grid = self.calculate_max_quantity_per_grid(self.total_investment)
+
+            print(f"quantity per grid: {self.quantity_per_grid}")
+        else:
+            # Use self.quantity_per_grid to determine total investment, quantity per level
+            self.total_investment = self.calculate_total_investment(self.quantity_per_grid)
+
+            print(f"total investment: {self.total_investment}")
+
+        assert self.quantity_per_grid >= self.ordermin
+        assert round(self.quantity_per_grid * self.lower_price, self.pair_decimals) >= self.costmin
+
         # Fetch fee schedule and trade volume info
         for attempt in range(self.max_error_count):
             try:
@@ -123,11 +143,26 @@ class KrakenGRIDBot(GRIDBot):
         # TODO: Implement
         self.closed_orders = []
         self.profit = 0
-        self.percent_change = 0
+        self.gain_percent = 0
         self.fee = 0
 
         # Fetch balances
         self.fetch_balances()
+
+        if self.mode != 'test':
+            if self.total_investment > self.account_trade_balances[self.base_currency]:
+                raise Exception(f"Your total investment is greater than your balance of {self.base_currency} available for trading.")
+    
+    def __repr__(self):
+        if self.name == '':
+            name_display = "''"
+        else:
+            name_display = self.name
+        
+        return f"{{KrakenGRIDBot name: {name_display}, pair: {self.pair}, mode: {self.mode}, runtime: {self.get_runtime()}, profit: {self.profit}, gain_percent: {self.gain_percent}%, total_investment: {self.total_investment}}}"
+    
+    def get_runtime(self):
+        return time.time() - self.start_time
     
     def check_config(self):
         """Throws an error if the configurations are not correct."""
@@ -137,7 +172,15 @@ class KrakenGRIDBot(GRIDBot):
         assert self.take_profit > 0
         assert self.take_profit > self.stop_loss
         assert self.days_to_run > 0
-        assert self.cash > 0
+
+        if self.quantity_per_grid > 0:
+            # Use self.quantity_per_grid to determine total investment, quantity per level
+            assert self.total_investment == 0
+        else:
+            # Use self.total_investment to determine total investment, quantity per level
+            assert self.quantity_per_grid == 0
+            assert self.total_investment > 0
+        
         assert self.latency > 0
         assert self.take_profit > self.upper_price
         assert self.upper_price > self.lower_price
@@ -147,8 +190,6 @@ class KrakenGRIDBot(GRIDBot):
     def init_grid(self):
         """Initializes grids."""
         self.grids = []
-
-        cash_per_level = round_down_to_cents(self.cash / self.level_num)
 
         # Determine what the prices are at each level
         prices = []
@@ -202,26 +243,26 @@ class KrakenGRIDBot(GRIDBot):
         status[self.closest_grid] = 'inactive'
 
         for i in range(self.level_num):
-            self.grids += [Grid(i, prices[i], cash_per_level, side[i], status[i])]
+            self.grids += [Grid(i, prices[i], round(self.quantity_per_grid, self.lot_decimals), side[i], status[i])]
         
-        # Determine amount of dollars to buy initial amount of cryptocurrency
+        # Determine initial quantity to buy initial amount of cryptocurrency
         grid_level_initial_buy_count = 0
         for i in range(len(self.grids)):
             if self.grids[i].side == 'sell' and self.grids[i].status == 'active':
                 grid_level_initial_buy_count += 1
         
         if grid_level_initial_buy_count > 0:
-            initial_buy_amount = grid_level_initial_buy_count * cash_per_level
+            initial_buy_amount = round(grid_level_initial_buy_count * self.quantity_per_grid, self.lot_decimals)
 
             # Place a buy order for the initial amount to sell
-            print(f"Adding a buy order for {round(initial_buy_amount / self.latest_ohlc.close, self.lot_decimals)} {self.pair} @ limit {self.latest_ohlc.close}")
+            print(f"Adding a buy order for {initial_buy_amount} {self.pair} @ limit {self.latest_ohlc.close}")
 
             for attempt in range(self.max_error_count):
                 try:
                     initial_buy_order_response = self.exchange.add_order(
                         ordertype='limit',
                         type='buy',
-                        volume=round(initial_buy_amount / self.latest_ohlc.close, self.lot_decimals),
+                        volume=initial_buy_amount,
                         pair=self.pair,
                         price=self.latest_ohlc.close,
                         oflags='post'
@@ -283,14 +324,14 @@ class KrakenGRIDBot(GRIDBot):
                 elif self.grids[i].side == 'sell':
                     side = 'sell'
                 
-                print(f"Adding a {side} order for {round(self.grids[i].cash_per_level/self.grids[i].limit_price, self.lot_decimals)} {self.pair} @ limit {self.grids[i].limit_price}")
+                print(f"Adding a {side} order for {self.grids[i].quantity} {self.pair} @ limit {self.grids[i].limit_price}")
 
                 for attempt in range(self.max_error_count):
                     try:
                         order_response = self.exchange.add_order(
                             ordertype='limit',
                             type=side,
-                            volume=round(self.grids[i].cash_per_level/self.grids[i].limit_price, self.lot_decimals),
+                            volume=self.grids[i].quantity,
                             pair=self.pair,
                             price=self.grids[i].limit_price,
                             oflags='post'
@@ -389,6 +430,25 @@ class KrakenGRIDBot(GRIDBot):
         
         ohlc = ohlc_response.get('result')
         self.latest_ohlc = OHLC(ohlc[self.ohlc_asset_key][-1])
+    
+    def calculate_max_quantity_per_grid(self, total_investment: float) -> float:
+        prices = []
+        for i in range(self.level_num):
+            prices += [round(self.lower_price + i*(self.upper_price - self.lower_price)/(self.level_num-1), self.pair_decimals)]
+        
+        average_price = sum(prices) / len(prices)
+
+        return (total_investment / self.level_num) / average_price
+    
+    def calculate_total_investment(self, quantity_per_grid: float) -> float:
+        total_investment = 0
+        
+        for i in range(self.level_num):
+            price = round(self.lower_price + i*(self.upper_price - self.lower_price)/(self.level_num-1), self.pair_decimals)
+            
+            total_investment += quantity_per_grid * price
+
+        return total_investment
     
     def start(self):
         try:
@@ -503,7 +563,7 @@ class KrakenGRIDBot(GRIDBot):
                             self.grids[i+1].side = 'sell'
                             self.grids[i+1].status = 'active'
 
-                            print(f"Adding a sell order for {round(self.grids[i+1].cash_per_level/self.grids[i+1].limit_price, self.lot_decimals)} {self.pair} @ limit {self.grids[i+1].limit_price}")
+                            print(f"Adding a sell order for {self.grids[i+1].quantity} {self.pair} @ limit {self.grids[i+1].limit_price}")
 
                             # TODO: Add all order in once batch using self.exchange.add_order_batch to reduce API calls
 
@@ -512,7 +572,7 @@ class KrakenGRIDBot(GRIDBot):
                                     order_response = self.exchange.add_order(
                                         ordertype='limit',
                                         type='sell',
-                                        volume=round(self.grids[i+1].cash_per_level/self.grids[i+1].limit_price, self.lot_decimals),
+                                        volume=self.grids[i+1].quantity,
                                         pair=self.pair,
                                         price=self.grids[i+1].limit_price,
                                         oflags='post'
@@ -546,7 +606,7 @@ class KrakenGRIDBot(GRIDBot):
                             self.grids[i-1].side = 'buy'
                             self.grids[i-1].status = 'active'
 
-                            print(f"Adding a buy order for {round(self.grids[i-1].cash_per_level/self.grids[i-1].limit_price, self.lot_decimals)} {self.pair} @ limit {self.grids[i-1].limit_price}")
+                            print(f"Adding a buy order for {self.grids[i-1].quantity} {self.pair} @ limit {self.grids[i-1].limit_price}")
                             
                             # TODO: Add all order in once batch using self.exchange.add_order_batch to reduce API calls
 
@@ -555,7 +615,7 @@ class KrakenGRIDBot(GRIDBot):
                                     order_response = self.exchange.add_order(
                                         ordertype='limit',
                                         type='buy',
-                                        volume=round(self.grids[i-1].cash_per_level/self.grids[i-1].limit_price, self.lot_decimals),
+                                        volume=self.grids[i-1].quantity,
                                         pair=self.pair,
                                         price=self.grids[i-1].limit_price,
                                         oflags='post'

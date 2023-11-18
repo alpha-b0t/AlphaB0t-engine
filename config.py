@@ -14,6 +14,7 @@ class GRIDBotConfig():
         env_config = dotenv_values(".env")
 
         self.exchange = env_config['EXCHANGE']
+        self.name = env_config['NAME']
         self.pair = env_config['PAIR']
         self.base_currency = env_config['BASE_CURRENCY']
         self.days_to_run = int(env_config['DAYS_TO_RUN'])
@@ -25,7 +26,8 @@ class GRIDBotConfig():
         self.upper_price = float(env_config['UPPER_PRICE'])
         self.lower_price = float(env_config['LOWER_PRICE'])
         self.level_num = int(env_config['LEVEL_NUM'])
-        self.cash = float(env_config['CASH'])
+        self.quantity_per_grid = float(env_config['QUANTITY_PER_GRID'])
+        self.total_investment = float(env_config['TOTAL_INVESTMENT'])
         self.stop_loss = float(env_config['STOP_LOSS'])
         self.take_profit = float(env_config['TAKE_PROFIT'])
         self.latency_in_sec = float(env_config['LATENCY_IN_SEC'])

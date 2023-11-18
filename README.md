@@ -70,13 +70,15 @@ STRIPE_PUBLISHABLE_KEY=
 STRIPE_SECRET_KEY=
 
 # GRID Bot Configuration
+NAME=
 PAIR=MOONUSD
 BASE_CURRENCY=ZUSD
 MODE=test
 UPPER_PRICE=8.10
 LOWER_PRICE=5.25
 LEVEL_NUM=4
-CASH=1000
+QUANTITY_PER_GRID=0
+TOTAL_INVESTMENT=1000
 STOP_LOSS=1.00
 TAKE_PROFIT=10.00
 DAYS_TO_RUN=30
@@ -104,6 +106,7 @@ Orders and trades:
 Websocket Interface: On
 
 ## Useful links
+- https://www.reddit.com/r/CryptoCurrency/comments/10uqzbu/how_to_crypto_grid_trading_201/?rdt=63963
 - https://medium.com/coinmonks/what-is-a-grid-trading-bot-3b58f3ec059b#:~:text=Grid%20Trading%20Bot%20is%20a,grid%20level%2C%20and%20vice%20versa.
 - https://levelup.gitconnected.com/creating-a-crypto-trading-bot-for-fun-and-profit-fbf8d74de8c6
 - https://www.binance.com/en/support/faq/binance-spot-grid-trading-parameters-688ff6ff08734848915de76a07b953dd
