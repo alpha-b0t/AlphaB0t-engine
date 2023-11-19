@@ -512,6 +512,8 @@ class KrakenGRIDBot(GRIDBot):
             print("User ended execution of program.")
         
         except Exception as e:
+            print(f"KrakenGRIDBot: {self}")
+            print(f"Grids: {self.grids}")
             raise e
     
     def update_orders(self):
@@ -528,7 +530,6 @@ class KrakenGRIDBot(GRIDBot):
             for attempt in range(self.max_error_count):
                 try:
                     # The appropiate Kraken API endpoint might be get_trades_info() instead of get_orders_info()
-                    print(f"txid: {txid}")
                     orders_response = self.exchange.get_orders_info(txid, trades=True)
                     break
                 except Exception as e:
@@ -576,7 +577,7 @@ class KrakenGRIDBot(GRIDBot):
 
                             for attempt in range(self.max_error_count):
                                 try:
-                                    order_response = self.exchange.add_order(
+                                    add_order_response = self.exchange.add_order(
                                         ordertype='limit',
                                         type='sell',
                                         volume=self.grids[i+1].quantity,
@@ -594,13 +595,33 @@ class KrakenGRIDBot(GRIDBot):
                                     else:
                                         time.sleep(self.error_latency)
 
-                            txid = order_response['result'].get('txid', [])
+                            txid = add_order_response['result'].get('txid', [])
                             if txid == []:
                                 txid = ''
                             else:
                                 txid = txid[0]
                             
-                            self.grids[i+1].order = KrakenOrder(txid, order_response.get('result', {}))
+                            self.grids[i+1].order = KrakenOrder(txid, add_order_response.get('result', {}))
+                            
+                            # Fetch order info for the newly added order using txid
+                            for attempt in range(self.max_error_count):
+                                try:
+                                    # The appropiate Kraken API endpoint might be get_trades_info() instead of get_orders_info()
+                                    order_response = self.exchange.get_orders_info(txid, trades=True)
+                                    break
+                                except Exception as e:
+                                    print(f"Error making API request (attempt {attempt + 1}/{self.max_error_count}): {e}")
+
+                                    if attempt == self.max_error_count - 1:
+                                        print(f"Failed to make API request after {self.max_error_count} attempts")
+                                        raise e
+                                    else:
+                                        time.sleep(self.error_latency)
+                            
+                            order = order_response.get('result')
+
+                            # Update the order info on record
+                            self.grids[i+1].order.update(order.get(txid, {}))
                     else:
                         # Add filled order to list of closed orders
                         self.closed_orders += [self.grids[i].order]
@@ -625,7 +646,7 @@ class KrakenGRIDBot(GRIDBot):
 
                             for attempt in range(self.max_error_count):
                                 try:
-                                    order_response = self.exchange.add_order(
+                                    add_order_response = self.exchange.add_order(
                                         ordertype='limit',
                                         type='buy',
                                         volume=self.grids[i-1].quantity,
@@ -643,13 +664,33 @@ class KrakenGRIDBot(GRIDBot):
                                     else:
                                         time.sleep(self.error_latency)
 
-                            txid = order_response['result'].get('txid', [])
+                            txid = add_order_response['result'].get('txid', [])
                             if txid == []:
                                 txid = ''
                             else:
                                 txid = txid[0]
                             
-                            self.grids[i-1].order = KrakenOrder(txid, order_response.get('result', {}))
+                            self.grids[i-1].order = KrakenOrder(txid, add_order_response.get('result', {}))
+
+                            # Fetch order info for the newly added order using txid
+                            for attempt in range(self.max_error_count):
+                                try:
+                                    # The appropiate Kraken API endpoint might be get_trades_info() instead of get_orders_info()
+                                    order_response = self.exchange.get_orders_info(txid, trades=True)
+                                    break
+                                except Exception as e:
+                                    print(f"Error making API request (attempt {attempt + 1}/{self.max_error_count}): {e}")
+
+                                    if attempt == self.max_error_count - 1:
+                                        print(f"Failed to make API request after {self.max_error_count} attempts")
+                                        raise e
+                                    else:
+                                        time.sleep(self.error_latency)
+                            
+                            order = order_response.get('result')
+
+                            # Update the order info on record
+                            self.grids[i-1].order.update(order.get(txid, {}))
     
     def stop(self):
         pass
