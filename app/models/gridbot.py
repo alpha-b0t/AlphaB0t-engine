@@ -448,7 +448,7 @@ class KrakenGRIDBot(GRIDBot):
 
         try:
             for i in range(len(self.closed_orders)):
-                if self.closed_orders[i].desc['type'] == 'buy':
+                if self.closed_orders[i].descr['type'] == 'buy':
                     profit -= self.closed_orders[i].vol_exec * self.closed_orders[i].price
                     profit -= self.closed_orders[i].fee
 
@@ -460,7 +460,7 @@ class KrakenGRIDBot(GRIDBot):
             
             self.profit = profit
             self.fee = fee
-            self.gain_percent = profit / self.total_investment
+            self.gain_percent = profit * 100 / self.total_investment
         except Exception as e:
             print(f"Error updating profit: {e}")
     
@@ -528,6 +528,7 @@ class KrakenGRIDBot(GRIDBot):
                 print("=========================================")
                 time.sleep(self.latency)
                 print("Time:", datetime.now())
+                self.calculate_profit()
                 print(self)
 
                 # Get latest OHLC data
