@@ -323,6 +323,7 @@ class KrakenGRIDBot(GRIDBot):
                             time.sleep(self.error_latency)
             
             # Initial limit buy order has been fulfilled
+            # Is this implemented correctly?
             self.closed_orders += [initial_buy_order_update_response['result']]
 
         # Place limit buy orders and limit sell orders
@@ -455,14 +456,14 @@ class KrakenGRIDBot(GRIDBot):
         try:
             for i in range(len(self.closed_orders)):
                 if self.closed_orders[i].descr['type'] == 'buy':
-                    profit -= self.closed_orders[i].vol_exec * self.closed_orders[i].price
-                    profit -= self.closed_orders[i].fee
+                    profit -= float(self.closed_orders[i].vol_exec) * float(self.closed_orders[i].price)
+                    profit -= float(self.closed_orders[i].fee)
 
                 else:
-                    profit += self.closed_orders[i].vol_exec * self.closed_orders[i].price
-                    profit -= self.closed_orders[i].fee
+                    profit += float(self.closed_orders[i].vol_exec) * float(self.closed_orders[i].price)
+                    profit -= float(self.closed_orders[i].fee)
                 
-                fee += self.closed_orders[i].fee
+                fee += float(self.closed_orders[i].fee)
             
             self.profit = profit
             self.fee = fee
