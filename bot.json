@@ -1,0 +1,21 @@
+{
+    "exchange": "kraken",
+    "name": "",
+    "pair": "MOONUSD",
+    "base_currency": "ZUSD",
+    "mode": "test",
+    "upper_price": 8.10,
+    "lower_price": 5.25,
+    "level_num": 4,
+    "quantity_per_grid": 0,
+    "total_investment": 1000,
+    "stop_loss": 1.00,
+    "take_profit": 10.00,
+    "days_to_run": 30,
+    "latency_in_sec": 5.00,
+    "max_error_count": 5,
+    "error_latency_in_sec": 5,
+    "init_buy_error_latency_in_sec": 5,
+    "init_buy_error_max_count": 10,
+    "cancel_orders_upon_exit": ""
+}
