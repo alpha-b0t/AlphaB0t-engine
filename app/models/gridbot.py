@@ -470,6 +470,7 @@ class KrakenGRIDBot(GRIDBot):
             self.gain_percent = profit * 100 / self.total_investment
         except Exception as e:
             print(f"Error updating profit: {e}")
+            print(f"Closed orders: {self.closed_orders}")
     
     def calculate_max_quantity_per_grid(self, total_investment: float) -> float:
         prices = []
