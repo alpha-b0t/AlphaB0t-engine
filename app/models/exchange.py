@@ -80,20 +80,9 @@ class KrakenExchange(Exchange):
             raise e
     
     # Public requests
-    def public_request(self, uri_path, query_parameters={}):
+    def public_request(self, uri_path, query_parameters=None):
         url = self.api_base_url + uri_path
-
-        if query_parameters != {}:
-            url += '?'
-            count = 0
-            for key in query_parameters.keys():
-                if count != 0:
-                    url += '&'
-                
-                url += f"{key}={query_parameters[key]}"
-                count += 1
-        
-        response = requests.get(url)
+        response = requests.get(url, params=query_parameters)
         return response
     
     def get_exchange_time(self):
