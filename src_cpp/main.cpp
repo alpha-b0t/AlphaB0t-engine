@@ -1,5 +1,6 @@
 #include <iostream>
 #include "Result/result.h"
+#include "backtest.cpp"
 
 using namespace std;
 
