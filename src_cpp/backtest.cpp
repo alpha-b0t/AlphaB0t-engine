@@ -5,8 +5,6 @@
 
 using namespace std;
 
-const double MAKER_FEE = 0.0025;
-
 class Grid {
     public:
         Grid(double price_level, string buy_sell, bool is_active) {
@@ -35,12 +33,12 @@ class OHLC {
         }
 };
 
-vector<double> optimize_grid_params(int max_level_num, double min_lower_price, double max_upper_price, double price_increment, vector<OHLC> prices);
-double get_profit_from_backtest(int level_num, double lower_price, double upper_price, vector<OHLC> prices);
+vector<double> optimize_grid_params(int max_level_num, double min_lower_price, double max_upper_price, double price_increment, vector<OHLC> prices, double fee);
+double get_profit_from_backtest(int level_num, double lower_price, double upper_price, vector<OHLC> prices, double fee);
 double min_fee1(double fee);
 double min_fee2(double fee);
 
-vector<double> optimize_grid_params(int max_level_num, double min_lower_price, double max_upper_price, double price_increment, vector<OHLC> prices) {
+vector<double> optimize_grid_params(int max_level_num, double min_lower_price, double max_upper_price, double price_increment, vector<OHLC> prices, double fee) {
     double best_profit = -1;
     int best_level_num = 0;
     double best_lower_price(0), best_upper_price(0);
@@ -53,7 +51,8 @@ vector<double> optimize_grid_params(int max_level_num, double min_lower_price, d
                     level_num=level_num,
                     lower_price=lower_price,
                     upper_price=upper_price,
-                    prices=prices
+                    prices=prices,
+                    fee=fee
                 );
 
                 if (profit > best_profit) {
@@ -70,7 +69,7 @@ vector<double> optimize_grid_params(int max_level_num, double min_lower_price, d
     return result;
 }
 
-double get_profit_from_backtest(int level_num, double lower_price, double upper_price, vector<OHLC> prices) {
+double get_profit_from_backtest(int level_num, double lower_price, double upper_price, vector<OHLC> prices, double fee) {
     // TODO: Implement
     return 0.00;
 }

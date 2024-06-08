@@ -1,7 +1,7 @@
 from dotenv import dotenv_values
 
 class AppConfig():
-    def __init__(self, filepath=".env"):
+    def __init__(self, filepath='.env'):
         env_config = dotenv_values(filepath)
 
         self.DATABASE_USERNAME = env_config['DATABASE_USERNAME']
@@ -9,8 +9,14 @@ class AppConfig():
         self.DATABASE_PORT = env_config['DATABASE_PORT']
         self.DATABASE_NAME = env_config['DATABASE_NAME']
 
+class RequestConfig():
+    def __init__(self, filepath='.env'):
+        env_config = dotenv_values(filepath)
+
+        self.request = env_config['REQUEST']
+
 class GRIDBotConfig():
-    def __init__(self, filepath=".env"):
+    def __init__(self, filepath='.env'):
         env_config = dotenv_values(filepath)
 
         self.exchange = env_config['EXCHANGE']
@@ -38,7 +44,7 @@ class GRIDBotConfig():
         self.cancel_orders_upon_exit = env_config['CANCEL_ORDERS_UPON_EXIT']
 
 class ExchangeConfig():
-    def __init__(self, filepath=".env"):
+    def __init__(self, filepath='.env'):
         env_config = dotenv_values(filepath)
 
         self.exchange = env_config['EXCHANGE']

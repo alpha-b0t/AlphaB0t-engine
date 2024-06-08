@@ -9,6 +9,7 @@ from datetime import datetime
 
 class GRIDBot():
     def __init__(self, exchange, pair, days_to_run, mode, upper_price, lower_price, level_num, cash, stop_loss, take_profit):
+        self.classname = 'GRIDBot'
         self.exchange = exchange
         self.pair = pair
         self.days_to_run = days_to_run
@@ -39,8 +40,9 @@ class GRIDBot():
         pass
 
 class KrakenGRIDBot(GRIDBot):
-    def __init__(self, gridbot_config: GRIDBotConfig, exchange_config: ExchangeConfig):
-        self.exchange = KrakenExchange(exchange_config)
+    def __init__(self, gridbot_config: GRIDBotConfig, exchange):
+        self.classname = 'KrakenGRIDBot'
+        self.exchange = exchange
 
         self.name = gridbot_config.name
         self.pair = gridbot_config.pair
@@ -554,10 +556,14 @@ class KrakenGRIDBot(GRIDBot):
             
         except KeyboardInterrupt as e:
             print("User ended execution of program.")
+            print(f"Exporting KrakenGRIDBOT to bot database as {self.name}.bot...")
+            self.stop()
         
         except Exception as e:
             print(f"KrakenGRIDBot: {self}")
             print(f"Grids: {self.grids}")
+            print(f"Exporting KrakenGRIDBOT to bot database as {self.name}.bot...")
+            self.stop()
             raise e
     
     def update_orders(self):
@@ -737,7 +743,7 @@ class KrakenGRIDBot(GRIDBot):
                             self.grids[i-1].order.update(order.get(txid, {}))
     
     def stop(self):
-        pass
+        self.to_json_file(f'app/bots/{self.name}.bot')
     
     def pause(self):
         pass
@@ -750,3 +756,53 @@ class KrakenGRIDBot(GRIDBot):
 
     def simulate_trading(self):
         pass
+    
+    def to_json_file(self, filename):
+        data = vars(self)
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=4, cls=CustomEncoder)
+    
+    @classmethod
+    def from_json_file(cls, filename):
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        
+        # Get the parameters of the __init__ method
+        init_params = inspect.signature(cls.__init__).parameters
+
+        # Extract known attributes
+        known_attributes = {param for param in init_params if param != 'self'}
+        known_data = {k: v for k, v in data.items() if k in known_attributes}
+
+        # Extract additional attributes
+        additional_data = {k: v for k, v in data.items() if k not in known_attributes}
+
+        # Create instance with known attributes
+        instance = cls(**known_data)
+
+        # Set additional attributes
+        for key, value in additional_data.items():
+            setattr(instance, key, cls.recursive_object_creation(value))
+        
+        return instance
+    
+    @classmethod
+    def recursive_object_creation(cls, data):
+        if isinstance(data, dict):
+            if 'classname' in data and data['classname'] in CLASS_NAMES:
+                # If the data is a dictionary with a 'classname' key, create an instance of the class
+                obj = globals()[data['classname']](*[data[attr] for attr in inspect.signature(globals()[data['classname']]).parameters.keys() if attr != 'self'])
+                for key, value in data.items():
+                    if key != 'classname':
+                        # Recursively set additional attributes
+                        setattr(obj, key, cls.recursive_object_creation(value))
+                return obj
+            else:
+                # If the data is a regular dictionary, recursively handle its values
+                return {k: cls.recursive_object_creation(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            # If the data is a list, recursively handle each element in the list
+            return [cls.recursive_object_creation(item) for item in data]
+        else:
+            # Base case: return data as is
+            return data

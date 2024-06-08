@@ -10,6 +10,7 @@ import json
 
 class Exchange():
     def __init__(self):
+        self.classname = 'Exchange'
         pass
     
     def login(self):
@@ -41,10 +42,38 @@ class Exchange():
     
     def cancel_order(self):
         pass
+    
+    def to_json(self):
+        return vars(self)
+    
+    @classmethod
+    def from_json(cls, json_data):
+        # Get the parameters of the __init__ method
+        init_params = inspect.signature(cls.__init__).parameters
+
+        # Extract known attributes
+        known_attributes = {param for param in init_params if param != 'self'}
+        known_data = {k: v for k, v in json_data.items() if k in known_attributes}
+
+        # Extract additional attributes
+        additional_data = {k: v for k, v in json_data.items() if k not in known_attributes}
+
+        # Create instance with known attributes
+        instance = cls(**known_data)
+
+        # Set additional attributes
+        for key, value in additional_data.items():
+            if isinstance(value, dict) and 'classname' in value and value['classname'] in CLASS_NAMES:
+                exec(f'setattr(instance, key, {value["classname"]}.from_json(value))')
+            else:
+                setattr(instance, key, value)
+        
+        return instance
 
 class KrakenExchange(Exchange):
     def __init__(self, exchange_config: ExchangeConfig):
         super().__init__()
+        self.classname = 'KrakenExchange'
         assert exchange_config.mode.lower() in ['live', 'test']
         self.api_key = exchange_config.api_key
         self.api_sec = exchange_config.api_sec
@@ -556,10 +585,38 @@ class KrakenExchange(Exchange):
         result = response.json()
         self.handle_response_errors(result)
         return result
+    
+    def to_json(self):
+        return vars(self)
+    
+    @classmethod
+    def from_json(cls, json_data):
+        # Get the parameters of the __init__ method
+        init_params = inspect.signature(cls.__init__).parameters
+
+        # Extract known attributes
+        known_attributes = {param for param in init_params if param != 'self'}
+        known_data = {k: v for k, v in json_data.items() if k in known_attributes}
+
+        # Extract additional attributes
+        additional_data = {k: v for k, v in json_data.items() if k not in known_attributes}
+
+        # Create instance with known attributes
+        instance = cls(**known_data)
+
+        # Set additional attributes
+        for key, value in additional_data.items():
+            if isinstance(value, dict) and 'classname' in value and value['classname'] in CLASS_NAMES:
+                exec(f'setattr(instance, key, {value["classname"]}.from_json(value))')
+            else:
+                setattr(instance, key, value)
+        
+        return instance
 
 class CoinbaseExchange(Exchange):
     def __init__(self, api_key='', api_sec='', api_passphrase=''):
         super().__init__()
+        self.classname = 'CoinbaseExchange'
         self.api_key = api_key
         self.api_sec = api_sec
         self.api_passphrase = api_passphrase
@@ -741,10 +798,38 @@ class CoinbaseExchange(Exchange):
             response = self.authenticated_request('DELETE', f"/orders/{order_id}")
         
         return response.json()
+    
+    def to_json(self):
+        return vars(self)
+    
+    @classmethod
+    def from_json(cls, json_data):
+        # Get the parameters of the __init__ method
+        init_params = inspect.signature(cls.__init__).parameters
+
+        # Extract known attributes
+        known_attributes = {param for param in init_params if param != 'self'}
+        known_data = {k: v for k, v in json_data.items() if k in known_attributes}
+
+        # Extract additional attributes
+        additional_data = {k: v for k, v in json_data.items() if k not in known_attributes}
+
+        # Create instance with known attributes
+        instance = cls(**known_data)
+
+        # Set additional attributes
+        for key, value in additional_data.items():
+            if isinstance(value, dict) and 'classname' in value and value['classname'] in CLASS_NAMES:
+                exec(f'setattr(instance, key, {value["classname"]}.from_json(value))')
+            else:
+                setattr(instance, key, value)
+        
+        return instance
 
 class RobinhoodCryptoExchange(Exchange):
     def __init__(self):
         super().__init__()
+        self.classname = 'RobinhoodCryptoExchange'
     
     def login(self):
         """
@@ -769,3 +854,30 @@ class RobinhoodCryptoExchange(Exchange):
             print('logout successful')
         except:
             print('already logged out: logout() can only be called when currently logged in')
+    
+    def to_json(self):
+        return vars(self)
+    
+    @classmethod
+    def from_json(cls, json_data):
+        # Get the parameters of the __init__ method
+        init_params = inspect.signature(cls.__init__).parameters
+
+        # Extract known attributes
+        known_attributes = {param for param in init_params if param != 'self'}
+        known_data = {k: v for k, v in json_data.items() if k in known_attributes}
+
+        # Extract additional attributes
+        additional_data = {k: v for k, v in json_data.items() if k not in known_attributes}
+
+        # Create instance with known attributes
+        instance = cls(**known_data)
+
+        # Set additional attributes
+        for key, value in additional_data.items():
+            if isinstance(value, dict) and 'classname' in value and value['classname'] in CLASS_NAMES:
+                exec(f'setattr(instance, key, {value["classname"]}.from_json(value))')
+            else:
+                setattr(instance, key, value)
+        
+        return instance

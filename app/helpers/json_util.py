@@ -3,7 +3,7 @@ import inspect
 
 # Add classes to this list
 # Every class in this list needs to have classname, to_json(), and from_json()
-CLASS_NAMES = ['OHLC']
+CLASS_NAMES = ['OHLC', 'Order', 'KrakenOrder', 'GRIDBot', 'KrakenGRIDBot', 'Exchange', 'KrakenExchange', 'CoinbaseExchange', 'RobinhoodCryptoExchange']
 
 class OHLC:
     """
