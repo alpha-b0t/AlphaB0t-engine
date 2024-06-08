@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, Blueprint
+from flask import request, Blueprint
 from app.models.result import Result
 from app.database.data_access import *
 import stripe
@@ -206,10 +206,10 @@ def pause_grid_bot():
         result = Result(status="failed", message=f"Internal Server Error: {e}", code=500)
         return result.to_api_response()
 
-# Resume a grid trading bot
-@api_bp.route("/api/grid-trading/bots/resume", methods=["POST"])
-def resume_grid_bot():
-    """Resume the Grid Trading Bot."""
+# Restart a grid trading bot
+@api_bp.route("/api/grid-trading/bots/restart", methods=["POST"])
+def restart_grid_bot():
+    """Restart the Grid Trading Bot."""
     try:
         result = Result()
         # TODO: Implement logic

@@ -1,13 +1,12 @@
 from RobinhoodCrypto.gridbot import GRIDBot
-from config import AppConfig, RequestConfig, GRIDBotConfig, ExchangeConfig
+from config import RequestConfig, GRIDBotConfig, ExchangeConfig
 from RobinhoodCrypto.helpers import confirm_grids
-from app.models.exchange import Exchange, KrakenExchange, CoinbaseExchange, RobinhoodCryptoExchange
-from app.models.gridbot import GRIDBot, KrakenGRIDBot
+from app.models.exchange import KrakenExchange
+from app.models.gridbot import KrakenGRIDBot
 import subprocess
 from AI.get_data import fetch_data
 from AI.json_helper import export_json_to_csv
 from AI.clean_data import remove_duplicates_and_sort
-from app.helpers.json_util import CLASS_NAMES
 
 if __name__ == '__main__':
     request_config = RequestConfig()
@@ -37,7 +36,7 @@ if __name__ == '__main__':
         gridbot_config = GRIDBotConfig()
         exchange_config = ExchangeConfig()
         
-        if exchange_config.exchange == 'Robinhood':
+        if exchange_config.exchange_name == 'Robinhood':
             if confirm_grids(gridbot_config.upper_price, gridbot_config.lower_price, gridbot_config.level_num, gridbot_config.total_investment):
                 grid_trader = GRIDBot(gridbot_config)
 
@@ -55,7 +54,7 @@ if __name__ == '__main__':
                 print(f"Simulation performance: {simulation_metric}%")
 
                 grid_trader.logout()
-        elif exchange_config.exchange == 'Kraken':
+        elif exchange_config.exchange_name == 'Kraken':
 
             if request_config.request in ['start', 'START', '', None, 'None']:
                 # Initialize Kraken gridbot
@@ -71,9 +70,9 @@ if __name__ == '__main__':
                 kraken_gridbot.start()
             elif request_config.request in ['load', 'LOAD']:
                 # Load Kraken gridbot if it exists
-                kraken_gridbot = KrakenGRIDBot.from_json_file(f'app/bots/{gridbot_config.name}.bot')
+                kraken_gridbot = KrakenGRIDBot.from_json_file(f'app/bots/{gridbot_config.name}.json')
 
                 print(kraken_gridbot)
 
-                # Resume automated grid trading
-                kraken_gridbot.start()
+                # Restart automated grid trading
+                kraken_gridbot.restart()

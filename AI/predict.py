@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import load_model
-from constants import SEQUENCE_LENGTH
+from model_constants import SEQUENCE_LENGTH
 
 # Load in the prediction data
 # Assumes the dataset has columns 'UNIX time', 'open', 'high', 'low', 'close', 'vwap', 'volume', 'count'

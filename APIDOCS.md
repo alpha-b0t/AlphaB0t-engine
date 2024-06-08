@@ -565,15 +565,15 @@ Pause a GRID trading bot.
     }
     ```
 
-## Resume a GRID Trading Bot
+## Restart a GRID Trading Bot
 
 ### Endpoint
 
-POST /api/grid-trading/bots/resume
+POST /api/grid-trading/bots/restart
 
 ### Description
 
-Resume a GRID trading bot.
+Restart a GRID trading bot.
 
 ### Request
 

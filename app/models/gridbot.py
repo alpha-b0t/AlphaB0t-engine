@@ -1,11 +1,14 @@
-from app.models.exchange import Exchange, KrakenExchange, CoinbaseExchange, RobinhoodCryptoExchange
+from app.models.exchange import KrakenExchange
 from app.models.grid import Grid
 from app.models.ohlc import OHLC
 from app.models.order import KrakenOrder
-from app.helpers.format import round_down_to_cents
-from config import AppConfig, GRIDBotConfig, ExchangeConfig
+from config import GRIDBotConfig
 import time
 from datetime import datetime
+import json
+import inspect
+from app.helpers.json_util import CustomEncoder
+from constants import CLASS_NAMES
 
 class GRIDBot():
     def __init__(self, exchange, pair, days_to_run, mode, upper_price, lower_price, level_num, cash, stop_loss, take_profit):
@@ -30,7 +33,7 @@ class GRIDBot():
     def pause(self):
         pass
     
-    def resume(self):
+    def restart(self):
         pass
     
     def update(self):
@@ -40,8 +43,14 @@ class GRIDBot():
         pass
 
 class KrakenGRIDBot(GRIDBot):
-    def __init__(self, gridbot_config: GRIDBotConfig, exchange):
+    def __init__(self, gridbot_config: GRIDBotConfig={}, exchange: KrakenExchange={}):
         self.classname = 'KrakenGRIDBot'
+        if type(gridbot_config) == dict and type(exchange) == dict:
+            # Reloading
+            print(f"Reloading KrakenGRIDBot...")
+            return
+        
+        # self.gridbot_config = gridbot_config
         self.exchange = exchange
 
         self.name = gridbot_config.name
@@ -412,9 +421,7 @@ class KrakenGRIDBot(GRIDBot):
         """Fetches latest account balances and account balances available for trading."""
         for attempt in range(self.max_error_count):
             try:
-                print("Fetching balances: CHECKPOINT 0")
                 account_balances_response = self.exchange.get_account_balance()
-                print("Fetching balances: CHECKPOINT 1")
                 break
             except Exception as e:
                 print(f"Error making API request (attempt {attempt + 1}/{self.max_error_count}): {e}")
@@ -426,15 +433,11 @@ class KrakenGRIDBot(GRIDBot):
                     print("Fetching balances: ERROR WAIT")
                     time.sleep(self.error_latency)
         
-        print("Fetching balances: CHECKPOINT C")
         self.account_balances = account_balances_response.get('result')
 
-        print("Fetching balances: CHECKPOINT D")
         for asset in self.account_balances.keys():
-            print("Fetching balances: CHECKPOINT E")
             self.account_balances[asset] = float(self.account_balances[asset])
         
-        print("Fetching balances: CHECKPOINT F")
         self.account_trade_balances = self.get_available_trade_balance()
     
     def fetch_latest_ohlc(self):
@@ -556,14 +559,16 @@ class KrakenGRIDBot(GRIDBot):
             
         except KeyboardInterrupt as e:
             print("User ended execution of program.")
-            print(f"Exporting KrakenGRIDBOT to bot database as {self.name}.bot...")
+            print(f"Exporting KrakenGRIDBOT to bot database as {self.name}.json...")
             self.stop()
+            print(f"Successfully exported KrakenGRIDBOT.")
         
         except Exception as e:
             print(f"KrakenGRIDBot: {self}")
             print(f"Grids: {self.grids}")
-            print(f"Exporting KrakenGRIDBOT to bot database as {self.name}.bot...")
+            print(f"Exporting KrakenGRIDBOT to bot database as {self.name}.json...")
             self.stop()
+            print(f"Successfully exported KrakenGRIDBOT.")
             raise e
     
     def update_orders(self):
@@ -743,13 +748,83 @@ class KrakenGRIDBot(GRIDBot):
                             self.grids[i-1].order.update(order.get(txid, {}))
     
     def stop(self):
-        self.to_json_file(f'app/bots/{self.name}.bot')
+        self.to_json_file(f'app/bots/{self.name}.json')
     
     def pause(self):
         pass
     
-    def resume(self):
-        pass
+    def restart(self):
+        try:
+            print("=========================================")
+            print("Time:", datetime.now())
+            self.calculate_profit()
+            print(self)
+
+            # Get latest OHLC data
+            print("\n\nFetching OHLC data...")
+
+            self.fetch_latest_ohlc()
+
+            print(f"\n\nOHLC: {self.latest_ohlc}")
+
+            # Fetch balances
+            print("\n\nFetching balances...")
+            self.fetch_balances()
+
+            print(f"Account balances: {self.account_balances}")
+            print(f"Account Trade Balances: {self.account_trade_balances}")
+            print("Finished fetching balances.")
+
+            print(f"\n\nOHLC: {self.latest_ohlc}")
+
+            while self.latest_ohlc.close > self.stop_loss and self.latest_ohlc.close < self.take_profit:
+                print("\n\nUpdating orders...")
+                self.update_orders()
+                
+                print("Finished updating orders.")
+
+                print("\n\nGrids:")
+                for i in range(len(self.grids)):
+                    print(self.grids[i])
+                
+                # Fetch balances
+                print("\n\nFetching balances...")
+                self.fetch_balances()
+
+                print(f"Account balances: {self.account_balances}")
+                print(f"Account Trade Balances: {self.account_trade_balances}")
+                print("Finished fetching balances.")
+
+                # TODO: Update the output
+
+                # Wait for a certain amount of time
+                print(f"\n\nSleeping for {self.latency} seconds...")
+                print("=========================================")
+                time.sleep(self.latency)
+                print("Time:", datetime.now())
+                self.calculate_profit()
+                print(self)
+
+                # Get latest OHLC data
+                print("\n\nFetching OHLC data...")
+
+                self.fetch_latest_ohlc()
+
+                print(f"\n\nOHLC: {self.latest_ohlc}")
+        
+        except KeyboardInterrupt as e:
+            print("User ended execution of program.")
+            print(f"Exporting KrakenGRIDBOT to bot database as {self.name}.json...")
+            self.stop()
+            print(f"Successfully exported KrakenGRIDBOT.")
+        
+        except Exception as e:
+            print(f"KrakenGRIDBot: {self}")
+            print(f"Grids: {self.grids}")
+            print(f"Exporting KrakenGRIDBOT to bot database as {self.name}.json...")
+            self.stop()
+            print(f"Successfully exported KrakenGRIDBOT.")
+            raise e
     
     def update(self):
         pass
@@ -780,6 +855,10 @@ class KrakenGRIDBot(GRIDBot):
         # Create instance with known attributes
         instance = cls(**known_data)
 
+        # Set known attributes (to be safe)
+        for key, value in known_data.items():
+            setattr(instance, key, cls.recursive_object_creation(value))
+
         # Set additional attributes
         for key, value in additional_data.items():
             setattr(instance, key, cls.recursive_object_creation(value))
@@ -790,6 +869,7 @@ class KrakenGRIDBot(GRIDBot):
     def recursive_object_creation(cls, data):
         if isinstance(data, dict):
             if 'classname' in data and data['classname'] in CLASS_NAMES:
+                print(f"CLASS_NAMES: data['classname']: {data['classname']}")
                 # If the data is a dictionary with a 'classname' key, create an instance of the class
                 obj = globals()[data['classname']](*[data[attr] for attr in inspect.signature(globals()[data['classname']]).parameters.keys() if attr != 'self'])
                 for key, value in data.items():
@@ -798,6 +878,7 @@ class KrakenGRIDBot(GRIDBot):
                         setattr(obj, key, cls.recursive_object_creation(value))
                 return obj
             else:
+                print(f"REGULAR: data: {data}")
                 # If the data is a regular dictionary, recursively handle its values
                 return {k: cls.recursive_object_creation(v) for k, v in data.items()}
         elif isinstance(data, list):

@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense, LSTM, Dropout
-from constants import EPOCHS, BATCH_SIZE, SEQUENCE_LENGTH
+from model_constants import EPOCHS, BATCH_SIZE, SEQUENCE_LENGTH
 
 # Load in the training data
 # Assumes the dataset has columns 'UNIX time', 'open', 'high', 'low', 'close', 'vwap', 'volume', 'count'

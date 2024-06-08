@@ -1,10 +1,9 @@
+import inspect
+from constants import CLASS_NAMES
+
 class Order():
     def __init__(self):
         self.classname = 'Order'
-        pass
-    
-    def to_json(self):
-        return vars(self)
     
     @classmethod
     def from_json(cls, json_data):
@@ -34,6 +33,7 @@ class KrakenOrder(Order):
     def __init__(self, txid='', order_data={}):
         self.classname = 'KrakenOrder'
         self.txid = txid
+        self.order_data = {}
         
         if order_data != {}:
             for key, value in order_data.items():
@@ -59,9 +59,6 @@ class KrakenOrder(Order):
             else:
                 if value != self.txid:
                     print(f"Recieved different txid when updating: recieved={value}, original={self.txid}")
-    
-    def to_json(self):
-        return vars(self)
     
     @classmethod
     def from_json(cls, json_data):

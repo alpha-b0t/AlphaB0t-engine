@@ -1,6 +1,16 @@
+import inspect
+from constants import CLASS_NAMES
+
 class OHLC:
-    def __init__(self, ohlc_data: list):
+    def __init__(self, ohlc_data: list=[]):
         self.classname = 'OHLC'
+        if ohlc_data == []:
+            # Reloading
+            print(f"Reloading OHLC...")
+            return
+        
+        self.ohlc_data = []
+        
         self.time = ohlc_data[0]
         self.open = float(ohlc_data[1])
         self.high = float(ohlc_data[2])
@@ -12,9 +22,6 @@ class OHLC:
     
     def __repr__(self):
         return f"{{OHLC time: {self.time}, open: {self.open}, high: {self.high}, low: {self.low}, close: {self.close}, vwap: {self.vwap}, volume: {self.volume}, count: {self.count}}}"
-    
-    def to_json(self):
-        return vars(self)
     
     @classmethod
     def from_json(cls, json_data):

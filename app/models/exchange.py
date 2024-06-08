@@ -7,11 +7,12 @@ import hmac
 import base64
 import time
 import json
+import inspect
+from constants import CLASS_NAMES
 
 class Exchange():
     def __init__(self):
         self.classname = 'Exchange'
-        pass
     
     def login(self):
         pass
@@ -43,9 +44,6 @@ class Exchange():
     def cancel_order(self):
         pass
     
-    def to_json(self):
-        return vars(self)
-    
     @classmethod
     def from_json(cls, json_data):
         # Get the parameters of the __init__ method
@@ -71,9 +69,16 @@ class Exchange():
         return instance
 
 class KrakenExchange(Exchange):
-    def __init__(self, exchange_config: ExchangeConfig):
+    def __init__(self, exchange_config: ExchangeConfig={}):
         super().__init__()
         self.classname = 'KrakenExchange'
+        if type(exchange_config) == dict:
+            # Reloading
+            print(f"Reloading KrakenExchange...")
+            return
+        
+        self.exchange_config = {}
+
         assert exchange_config.mode.lower() in ['live', 'test']
         self.api_key = exchange_config.api_key
         self.api_sec = exchange_config.api_sec
@@ -586,9 +591,6 @@ class KrakenExchange(Exchange):
         self.handle_response_errors(result)
         return result
     
-    def to_json(self):
-        return vars(self)
-    
     @classmethod
     def from_json(cls, json_data):
         # Get the parameters of the __init__ method
@@ -799,9 +801,6 @@ class CoinbaseExchange(Exchange):
         
         return response.json()
     
-    def to_json(self):
-        return vars(self)
-    
     @classmethod
     def from_json(cls, json_data):
         # Get the parameters of the __init__ method
@@ -854,9 +853,6 @@ class RobinhoodCryptoExchange(Exchange):
             print('logout successful')
         except:
             print('already logged out: logout() can only be called when currently logged in')
-    
-    def to_json(self):
-        return vars(self)
     
     @classmethod
     def from_json(cls, json_data):
