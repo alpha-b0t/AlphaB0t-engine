@@ -18,7 +18,8 @@ if __name__ == '__main__':
         json_filename = input("Enter JSON filename to store data (e.g. 'training_data.json'): ")
         csv_filename = input("Enter CSV filename to store data (e.g. 'crypto_training_data.csv'): ")
 
-        fetch_data(pair=pair,
+        fetch_data(
+            pair=pair,
             interval=interval,
             since=since,
             filename=json_filename

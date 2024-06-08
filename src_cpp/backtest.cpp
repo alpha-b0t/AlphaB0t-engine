@@ -8,7 +8,7 @@ using namespace std;
 class Grid {
     public:
         Grid(double price_level, string buy_sell, bool is_active) {
-            double price = prive_level:
+            double price = price_level;
             string side = buy_sell;
             bool active = is_active;
         }
