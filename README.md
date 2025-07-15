@@ -1,4 +1,4 @@
-# ColdCryptoBot-engine
+# AlphaB0t-engine
 
 ## Getting started
 
