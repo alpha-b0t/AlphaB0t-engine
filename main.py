@@ -36,8 +36,6 @@ if __name__ == '__main__':
 
             export_json_to_csv(fg_json_filename, fg_csv_filename)
 
-            remove_duplicates_and_sort(fg_csv_filename)
-
     else:
         gridbot_config = GRIDBotConfig()
         exchange_config = ExchangeConfig()
