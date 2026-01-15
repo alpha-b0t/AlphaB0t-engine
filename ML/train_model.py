@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import uuid
+from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import Sequential, load_model
@@ -10,6 +12,10 @@ from model_constants import EPOCHS, BATCH_SIZE, SEQUENCE_LENGTH, MA_SHORT, MA_LO
 # Load in the training data
 # Assumes the dataset has columns 'UNIX time', 'open', 'high', 'low', 'close', 'vwap', 'volume', 'count'
 data = pd.read_csv('ML/data/crypto_training_data.csv')
+
+# Generate a unique UUID for this model
+model_uuid = str(uuid.uuid4())
+print(f"Generated Model UUID: {model_uuid}")
 
 # Calculate volatility for each data point
 # Volatility = (high - low) / close (intrabar volatility)
@@ -43,6 +49,10 @@ data['macd_histogram'] = data['macd'] - data['macd_signal']
 
 # Fill NaN values created by rolling/ewm calculations
 data = data.fillna(method='bfill')
+
+# Save the processed data before scaling for future reference
+data.to_csv(f'ML/data/model_{model_uuid}_training_data.csv', index=False)
+print(f"Training data saved: ML/data/model_{model_uuid}_training_data.csv")
 
 # Feature scaling
 sc = StandardScaler()
@@ -96,9 +106,40 @@ predictions_actual = scaler_close.inverse_transform(predictions_reshaped)
 
 print(predictions_actual)
 
-# Compare predictions with actual prices
-# (You can use any suitable evaluation metric based on your requirement)
+# Calculate evaluation metrics
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+mae = mean_absolute_error(y_test, predictions.flatten())
+rmse = np.sqrt(mean_squared_error(y_test, predictions.flatten()))
+r2 = r2_score(y_test, predictions.flatten())
+
+# Save training statistics to CSV
+metrics_data = {
+    'model_uuid': [model_uuid],
+    'timestamp': [datetime.now().isoformat()],
+    'test_loss': [float(loss)],
+    'mae': [float(mae)],
+    'rmse': [float(rmse)],
+    'r2_score': [float(r2)],
+    'epochs': [EPOCHS],
+    'batch_size': [BATCH_SIZE],
+    'sequence_length': [SEQUENCE_LENGTH],
+    'ma_short': [MA_SHORT],
+    'ma_long': [MA_LONG],
+    'ema_short': [EMA_SHORT],
+    'ema_long': [EMA_LONG],
+    'rsi_period': [RSI_PERIOD],
+    'macd_fast': [MACD_FAST],
+    'macd_slow': [MACD_SLOW],
+    'macd_signal': [MACD_SIGNAL],
+    'training_samples': [len(X_train)],
+    'testing_samples': [len(X_test)],
+}
+
+metrics_df = pd.DataFrame(metrics_data)
+metrics_df.to_csv(f'ML/data/model_{model_uuid}_metrics.csv', index=False)
+print(f"Metrics saved: ML/data/model_{model_uuid}_metrics.csv")
 
 # Save the trained model
-model.save('ML/models/crypto_price_model.h5')
-print('Model saved successfully.')
+model.save(f'ML/models/crypto_price_model_{model_uuid}.h5')
+print(f'Model saved: ML/models/crypto_price_model_{model_uuid}.h5')
