@@ -9,6 +9,7 @@ model_uuid = input("Enter the UUID of the model to use for prediction: ").strip(
 
 # Load in the prediction data
 # Assumes the dataset has columns 'UNIX time', 'open', 'high', 'low', 'close', 'vwap', 'volume', 'count'
+# plus volatility and other TA indicators (see the training data)
 prediction_data = pd.read_csv('ML/data/crypto_prediction_data.csv')
 
 scaler = StandardScaler()
