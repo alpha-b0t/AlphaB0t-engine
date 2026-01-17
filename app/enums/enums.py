@@ -5,7 +5,7 @@ class BotMode(Enum):
     LIVE = 1
     PAPER = 2
 
-class BotType(Enum):
+class StrategyType(Enum):
     GRID = 0
     SENTIMENT = 1
     ML = 2

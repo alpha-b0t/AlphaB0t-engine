@@ -16,7 +16,7 @@ __pycache__/
 /app/bots/
 
 # ML data
-/ML/data/
+/app/models/Strategy/ML/data/
 
 # ML models
-/ML/models/
+/app/models/Strategy/ML/models/
