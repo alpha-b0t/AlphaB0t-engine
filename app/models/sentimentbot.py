@@ -3,7 +3,7 @@ from app.models.exchange import KrakenExchange
 from app.models.ohlc import OHLC
 from app.models.order import KrakenOrder
 from app.exchanges.cmc_api import CoinMarketCapAPI
-from app.helpers.techinical_analysis import TA
+from app.strategies.techinical_analysis import TA
 from config import SentimentBotConfig
 import time
 from datetime import datetime
