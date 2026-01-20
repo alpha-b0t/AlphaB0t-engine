@@ -58,7 +58,7 @@ if __name__ == '__main__':
                 kraken_gridbot.start()
             elif request_config.request in ['load', 'LOAD']:
                 # Load Kraken gridbot if it exists
-                kraken_gridbot = GRIDBot.from_json_file(f'app/bots/{gridbot_config.name}.json')
+                kraken_gridbot = GRIDBot.from_json_file(f'app/bots/local/{gridbot_config.name}.json')
 
                 print(kraken_gridbot)
 

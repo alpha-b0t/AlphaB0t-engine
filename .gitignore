@@ -13,7 +13,7 @@ __pycache__/
 /bin/
 
 # Bot files
-/app/bots/
+/app/bots/local/
 
 # ML data
 /app/strategies/ML/data/

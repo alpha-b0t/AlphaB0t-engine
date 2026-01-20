@@ -343,7 +343,7 @@ class SentimentBot(Bot):
         # TODO: Implement
     
     def stop(self):
-        self.to_json_file(f'app/bots/{self.name}.json')
+        self.to_json_file(f'app/bots/local/{self.name}.json')
     
     def restart(self):
         try:
