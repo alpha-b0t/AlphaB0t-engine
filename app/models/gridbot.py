@@ -1,7 +1,7 @@
 from app.models.bot import Bot
 from app.exchanges.exchange import KrakenExchange
 from app.strategies.grid import Grid
-from app.models.ohlc import OHLC
+from app.strategies.ohlc import OHLC
 from app.models.order import KrakenOrder
 from config import GRIDBotConfig
 import time
