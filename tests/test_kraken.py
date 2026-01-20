@@ -1,4 +1,4 @@
-from app.models.gridbot import GRIDBot
+from app.bots.gridbot import GRIDBot
 from app.exchanges.exchange import KrakenExchange
 from config import ExchangeConfig, GRIDBotConfig
 import pytest
