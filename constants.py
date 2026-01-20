@@ -19,4 +19,6 @@ CLASS_NAMES = [
     'SentimentBotConfig',
     'CoinMarketCapAPI',
     'Bot',
+    'StrategyConfig',
+    'Strategy'
 ]

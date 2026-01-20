@@ -249,3 +249,54 @@ class ExchangeConfig():
                 setattr(instance, key, value)
         
         return instance
+
+class StrategyConfig():
+    # TODO: Finish implementing
+    def __init__(self, filepath='.env'):
+        self.classname = self.__class__.__name__
+        env_config = dotenv_values(filepath)
+
+        self.exchange_name = env_config['EXCHANGE']
+        self.api_key = env_config['API_KEY']
+
+        if self.api_key is None:
+            self.api_key = ''
+
+        self.api_sec = env_config['API_SEC']
+
+        if self.api_sec is None:
+            self.api_sec = ''
+        
+        self.api_passphrase = env_config['API_PASSPHRASE']
+
+        if self.api_passphrase is None:
+            self.api_passphrase = ''
+        
+        self.mode = env_config['MODE']
+
+        if self.mode is None or self.mode == '':
+            self.mode = 'test'
+    
+    @classmethod
+    def from_json(cls, json_data):
+        # Get the parameters of the __init__ method
+        init_params = inspect.signature(cls.__init__).parameters
+
+        # Extract known attributes
+        known_attributes = {param for param in init_params if param != 'self'}
+        known_data = {k: v for k, v in json_data.items() if k in known_attributes}
+
+        # Extract additional attributes
+        additional_data = {k: v for k, v in json_data.items() if k not in known_attributes}
+
+        # Create instance with known attributes
+        instance = cls(**known_data)
+
+        # Set additional attributes
+        for key, value in additional_data.items():
+            if isinstance(value, dict) and 'classname' in value and value['classname'] in CLASS_NAMES:
+                exec(f'setattr(instance, key, {value["classname"]}.from_json(value))')
+            else:
+                setattr(instance, key, value)
+        
+        return instance
