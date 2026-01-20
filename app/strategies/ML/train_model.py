@@ -3,7 +3,6 @@ import pandas as pd
 import tensorflow as tf
 import uuid
 from datetime import datetime
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense, LSTM, Dropout
@@ -67,8 +66,15 @@ for i in range(len(data_scaled) - SEQUENCE_LENGTH):
 
 X, y = np.array(X), np.array(y)
 
-# Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Split the data into training and testing sets chronologically (time series data)
+# Using 80/20 split with test data at the end to prevent data leakage
+train_size = int(0.8 * len(X))
+
+X_train = X[:train_size]
+y_train = y[:train_size]
+
+X_test = X[train_size:]
+y_test = y[train_size:]
 
 # Build the LSTM model
 model = Sequential([
