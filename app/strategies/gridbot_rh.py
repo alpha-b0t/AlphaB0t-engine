@@ -1,5 +1,5 @@
 import robin_stocks.robinhood as rh
-from app.strategies.order import *
+from app.strategies.order_rh import *
 from app.strategies.error_queue import ErrorQueue, ErrorQueueLimitExceededError
 import time
 from app.strategies.helpers import *
