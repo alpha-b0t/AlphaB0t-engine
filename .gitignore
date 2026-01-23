@@ -9,6 +9,7 @@
 # Python files
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # C++ compiled files
 /bin/
